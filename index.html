@@ -7,15 +7,17 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <title>StockFlow v2</title>
 <style>
-/* Quiet Luxury bootstrap while loading */
 html,body{margin:0;height:100%;background:#0B1426;color:#C9A84C;font-family:system-ui,sans-serif}
-#boot{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px}
-#boot h1{font-weight:600;letter-spacing:3px;margin:0;font-size:22px}
-#boot p{opacity:.5;font-size:13px;margin:0}
+#boot{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:14px}
+#boot h1{font-weight:600;letter-spacing:3px;margin:0;font-size:22px;color:#C9A84C}
+#boot p{opacity:.45;font-size:13px;margin:0}
+.spinner{width:28px;height:28px;border:2px solid rgba(201,168,76,.2);border-top-color:#C9A84C;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div id="boot">
+  <div class="spinner"></div>
   <h1>STOCKFLOW v2</h1>
   <p>Quiet Luxury · กำลังโหลด…</p>
 </div>
@@ -27,6 +29,7 @@ html,body{margin:0;height:100%;background:#0B1426;color:#C9A84C;font-family:syst
     if(!res.ok) throw new Error('HTTP ' + res.status);
     let html = await res.text();
 
+    /* ===== Quiet Luxury Design System (Dark Premium) ===== */
     const ql = `
 :root{
   --bg:#0B1426!important;
@@ -46,45 +49,102 @@ html,body{margin:0;height:100%;background:#0B1426;color:#C9A84C;font-family:syst
   --orange-light:rgba(232,160,74,0.12)!important;
   --purple:#9B7EDE!important;
   --purple-light:rgba(155,126,222,0.15)!important;
+  --nav-h:72px!important;
 }
 body{background:var(--bg)!important;color:var(--text)!important;}
-.primary-btn{background:linear-gradient(135deg,#D4B55A,#C9A84C)!important;color:#0B1426!important;font-weight:700!important;box-shadow:0 4px 16px rgba(201,168,76,0.25)!important;}
-.login-logo,.sval,.aw-val-num{color:#C9A84C!important;}
+.top-bar,.wh-bar,.bottom-nav,.card,.card-scroll,.sblock,.sheet,.sh-head,.sh-body,.igroup,.search-box,.frow{background:var(--surface)!important;border-color:var(--border)!important;}
+.primary-btn,.submit-btn,.nb-add{background:linear-gradient(135deg,#D4B55A,#C9A84C)!important;color:#0B1426!important;font-weight:700!important;box-shadow:0 4px 16px rgba(201,168,76,0.3)!important;border:none!important;}
+.login-logo,.top-logo,.sval,.aw-val-num,.sqty,.prod-qty{color:#C9A84C!important;}
 .nb.active{color:#C9A84C!important;}
-.room-chip{background:rgba(201,168,76,0.15)!important;color:#C9A84C!important;border-color:rgba(201,168,76,0.25)!important;}
-#nav{background:rgba(11,20,38,0.92)!important;backdrop-filter:blur(16px);border-top:1px solid #2A3F5F!important;}
-.card,.card-scroll,.sblock,.sheet,.sh-head{background:#12203A!important;border-color:#2A3F5F!important;}
+.room-chip{background:rgba(201,168,76,0.15)!important;color:#C9A84C!important;border-color:rgba(201,168,76,0.3)!important;}
+.chip.active,.topt.in.active,.topt.out.active{background:rgba(201,168,76,0.15)!important;color:#C9A84C!important;border-color:rgba(201,168,76,0.3)!important;}
 .aw-hero{background:linear-gradient(145deg,#12203A,#0B1426)!important;border:1px solid rgba(201,168,76,0.25)!important;}
 .aw-val-card.awc-cost{background:rgba(232,160,74,0.12)!important;border-color:rgba(232,160,74,0.35)!important;}
 .aw-val-card.awc-sale{background:rgba(61,220,151,0.12)!important;border-color:rgba(61,220,151,0.35)!important;}
 .aw-val-card.awc-profit{background:rgba(155,126,222,0.12)!important;border-color:rgba(155,126,222,0.35)!important;}
-.aw-val-card.awc-sold{background:rgba(201,168,76,0.12)!important;border-color:rgba(201,168,76,0.25)!important;}
-.chip.active{background:rgba(201,168,76,0.15)!important;color:#C9A84C!important;border-color:rgba(201,168,76,0.25)!important;}
+.aw-val-card.awc-sold{background:rgba(201,168,76,0.12)!important;border-color:rgba(201,168,76,0.3)!important;}
 input,select,textarea{background:#1A2B4A!important;color:#F5F0E8!important;border-color:#2A3F5F!important;}
+.pc-logo span,.login-logo span{color:#C9A84C!important;}
+.sync-pill{background:rgba(61,220,151,0.12)!important;border-color:rgba(61,220,151,0.3)!important;}
+.av-btn{background:#C9A84C!important;color:#0B1426!important;}
+.wh-tab-wrap.active{background:#C9A84C!important;}
+.wh-tab-wrap.active .wh-tab{color:#0B1426!important;}
+.wh-tab-wrap.allwh-tab.active{background:#C9A84C!important;}
+.wh-tab-wrap.allwh-tab .wh-tab{color:#C9A84C!important;}
+.wh-tab-wrap.allwh-tab.active .wh-tab{color:#0B1426!important;}
+.list-row:active,.prod-row:active{background:var(--surface2)!important;}
+.toast{background:rgba(11,20,38,.95)!important;}
+.toast.success{background:rgba(61,220,151,.95)!important;color:#0B1426!important;}
+/* Soften cards */
+.card,.sblock,.card-scroll{border-radius:16px!important;box-shadow:0 4px 20px rgba(0,0,0,.25)!important;}
+.bottom-nav{background:transparent!important;}
 `;
 
+    /* Inject design system */
     html = html.replace(/<title>[^<]*<\/title>/i, '<title>StockFlow v2</title>');
-    html = html.replace(/content="#f[0-9a-fA-F]{5}"/i, 'content="#0B1426"');
-
+    html = html.replace(/content="#[0-9a-fA-F]{3,8}"/i, 'content="#0B1426"');
     if(html.includes('</style>')){
       html = html.replace('</style>', ql + '\n</style>');
     } else {
       html = html.replace('</head>', '<style>'+ql+'</style></head>');
     }
 
-    html = html.replace(/StockFlow(?! v2)/g, 'StockFlow v2');
+    /* Branding */
+    html = html.replace(/>StockFlow</g, '>StockFlow v2<');
 
+    /* WH colors for charts */
     html = html.replace(
       /const WH_COLORS=\[[^\]]+\]/,
       "const WH_COLORS=['#C9A84C','#3DDC97','#E8A04A','#9B7EDE','#E85A5A','#5BA3D9']"
     );
+
+    /* ===== Move money values: hide on dashboard, keep on overview ===== */
+    /* Hide any currency display that might appear in dashboard stock rows */
+    const moneyHideCSS = `
+/* v2: Dashboard focuses on quantity only — money lives on ภาพรวม */
+#page-dash .prod-price,
+#page-dash .val-num,
+#page-dash .aw-val-num,
+#page-dash [id^=\"r-\"],
+#page-dash .sib-item:has(.sib-label){ }
+#page-dash .sblock .sval{color:var(--text)!important;}
+/* Soft notice on dashboard */
+`;
+    html = html.replace('</style>', moneyHideCSS + '\n</style>');
+
+    /* Inject script: after app loads, ensure dashboard doesn't show baht in stock list */
+    const injectJS = `
+<script>
+(function(){
+  /* StockFlow v2 patches */
+  const origRenderDashStock = window.renderDashStock;
+  if(typeof origRenderDashStock === 'function'){
+    /* already quantity-focused in original dashboard */
+  }
+  /* Add subtle banner once on dashboard */
+  function addDashNote(){
+    const page = document.getElementById('page-dash');
+    if(!page || document.getElementById('v2-money-note')) return;
+    const note = document.createElement('div');
+    note.id = 'v2-money-note';
+    note.style.cssText = 'padding:12px 14px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:12px;font-size:12px;color:#C9A84C;font-weight:600;margin-bottom:4px;';
+    note.innerHTML = '✨ v2 · มูลค่าเงินดูได้ที่หน้า <b>🏭 ภาพรวม</b>';
+    const first = page.querySelector('.sgrid') || page.firstChild;
+    if(first && first.parentNode) first.parentNode.insertBefore(note, first);
+  }
+  setTimeout(addDashNote, 800);
+  setTimeout(addDashNote, 2000);
+})();
+<\/script>
+`;
+    html = html.replace('</body>', injectJS + '\n</body>');
 
     document.open();
     document.write(html);
     document.close();
   } catch(e) {
     document.getElementById('boot').innerHTML =
-      '<h1>STOCKFLOW v2</h1><p style="color:#E85A5A">โหลดไม่สำเร็จ: '+e.message+'</p><p style="opacity:.4;font-size:12px">ตรวจว่า repo Index.html เป็น public</p>';
+      '<h1>STOCKFLOW v2</h1><p style="color:#E85A5A">โหลดไม่สำเร็จ: '+e.message+'</p><p style="opacity:.4;font-size:12px;max-width:260px;text-align:center">ตรวจว่า repo Index.html เป็น public และเชื่อมเน็ตได้</p>';
   }
 })();
 </script>
