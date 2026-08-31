@@ -8,12 +8,14 @@
     { id: 'WH_C', label: 'คลัง C', badge: 'c' }
   ];
   var AW_VALUE_USERS = ['นารินทร์', 'เบ้น'];
+  var PLAT_MAP = { shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok', facebook: 'Facebook', line: 'LINE' };
   var pcBuffer = '';
   var currentWsKey = '', room = 'WH_A', user = '';
   var skus = {}, movements = {}, movArr = [];
   var warehouses = WH_DEFAULTS.slice();
   var pollTimer = null, chart = null, lastChartKey = '';
   var outDetailDate = null, chOutPie = null, chOutBar = null, chOutPlat = null;
+  var recType = 'in', curPlat = '', curAdjDir = 'plus';
 
   function hashCode(s) {
     var h = 0;
@@ -28,25 +30,36 @@
   }
   function fmtB(n) { return '฿' + Math.round(n || 0).toLocaleString('th-TH'); }
   function maskB(n) { return canSeeValue() ? fmtB(n) : '••••'; }
-  function toast(msg, type) {
+  function toast(msg) {
     var w = document.getElementById('toast-wrap');
     var t = document.createElement('div');
-    t.className = 'toast' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+    t.className = 'toast';
     t.textContent = msg;
     w.innerHTML = '';
     w.appendChild(t);
-    setTimeout(function () { t.remove(); }, 2500);
+    setTimeout(function () { t.remove(); }, 2600);
   }
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  function api(p, opt) {
+    opt = opt || {};
+    return fetch(DB + '/' + p + '.json', Object.assign({ cache: 'no-store' }, opt)).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    });
+  }
+  function apiPost(p, v) {
+    return api(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) })
+      .then(function (d) { return d && d.name; });
+  }
+  function rp() { return 'ws_' + currentWsKey + '/rooms/' + room; }
+
   function updateDots() {
     var dots = document.querySelectorAll('#pc-dots .pc-dot');
-    for (var i = 0; i < dots.length; i++) {
-      dots[i].className = 'pc-dot' + (i < pcBuffer.length ? ' on' : '');
-    }
+    for (var i = 0; i < dots.length; i++) dots[i].className = 'pc-dot' + (i < pcBuffer.length ? ' on' : '');
   }
   function pcKey(d) {
     if (pcBuffer.length >= PC_LEN) return;
@@ -55,10 +68,7 @@
     if (pcBuffer.length === PC_LEN) setTimeout(confirmPasscode, 160);
   }
   function pcDel() {
-    if (pcBuffer.length) {
-      pcBuffer = pcBuffer.slice(0, -1);
-      updateDots();
-    }
+    if (pcBuffer.length) { pcBuffer = pcBuffer.slice(0, -1); updateDots(); }
   }
   function buildPasscodeUI() {
     var dotsEl = document.getElementById('pc-dots');
@@ -71,8 +81,7 @@
       d.className = 'pc-dot';
       dotsEl.appendChild(d);
     }
-    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
-    keys.forEach(function (k) {
+    ['1','2','3','4','5','6','7','8','9','','0','del'].forEach(function (k) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'pc-key' + (k === '' ? ' ghost' : '');
@@ -80,7 +89,6 @@
       if (k !== '') {
         b.addEventListener('click', function (e) {
           e.preventDefault();
-          e.stopPropagation();
           if (k === 'del') pcDel(); else pcKey(k);
         });
       }
@@ -91,44 +99,31 @@
     currentWsKey = hashCode(pcBuffer);
     pcBuffer = '';
     updateDots();
-    document.getElementById('passcode-screen').style.display = 'none';
+    document.getElementById('pc').style.display = 'none';
     document.getElementById('ws-display').textContent = 'WS-' + currentWsKey;
     var saved = localStorage.getItem('sf_user_' + currentWsKey);
-    if (saved) {
-      user = saved;
-      startApp();
-    } else {
-      document.getElementById('login-screen').style.display = 'flex';
-      setTimeout(function () {
-        var inp = document.getElementById('login-name');
-        if (inp) inp.focus();
-      }, 200);
+    if (saved) { user = saved; startApp(); }
+    else {
+      document.getElementById('login').style.display = 'flex';
+      setTimeout(function () { var i = document.getElementById('login-name'); if (i) i.focus(); }, 200);
     }
   }
   function backToPasscode() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('passcode-screen').style.display = 'flex';
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('pc').style.display = 'flex';
     pcBuffer = '';
     updateDots();
     currentWsKey = '';
   }
   function doLogin() {
     var n = document.getElementById('login-name').value.trim();
-    if (!n) { toast('กรุณากรอกชื่อ', 'err'); return; }
+    if (!n) { toast('กรุณากรอกชื่อ'); return; }
     user = n;
     localStorage.setItem('sf_user_' + currentWsKey, n);
-    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('login').style.display = 'none';
     startApp();
   }
 
-  function api(p, opt) {
-    opt = opt || {};
-    return fetch(DB + '/' + p + '.json', Object.assign({ cache: 'no-store' }, opt)).then(function (r) {
-      if (!r.ok) throw new Error(r.status);
-      return r.json();
-    });
-  }
-  function rp() { return 'ws_' + currentWsKey + '/rooms/' + room; }
   function computeStock(mvs) {
     var map = {};
     Object.values(mvs || {}).forEach(function (m) {
@@ -162,6 +157,7 @@
         return (b[1].createdAt || 0) - (a[1].createdAt || 0);
       });
       updateDash();
+      fillSkuSelect();
     }).catch(function (e) { console.warn(e); });
   }
 
@@ -183,12 +179,13 @@
     document.getElementById('stock-count').textContent = ents.length + ' รายการ';
     var list = document.getElementById('stock-list');
     if (!ents.length) list.innerHTML = '<div class="empty">ยังไม่มีสต็อก</div>';
-    else list.innerHTML = ents.slice(0, 10).map(function (pair) {
+    else list.innerHTML = ents.slice(0, 12).map(function (pair) {
       var s = skus[pair[0]] || {}, f = fmtStock(pair[1], s);
-      return '<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">' + (s.name || pair[0]) + '</div><div class="list-meta">' + bU(s) + (s.piecesPerCase > 1 ? ' · ' + s.piecesPerCase + ' ' + bU(s) + '/' + cU(s) : '') + '</div></div><div class="list-qty"><div>' + f.main + '</div>' + (f.sub ? '<div class="list-qty-sub">' + f.sub + '</div>' : '') + '</div></div>';
+      var meta = bU(s) + (s.piecesPerCase > 1 ? ' · ' + s.piecesPerCase + '/' + cU(s) : '');
+      return '<div class="row"><div class="row-ico">▢</div><div class="row-b"><div class="row-n">' + (s.name || pair[0]) + '</div><div class="row-m">' + meta + '</div></div><div class="row-q"><div>' + f.main + '</div>' + (f.sub ? '<div class="row-q-sub">' + f.sub + '</div>' : '') + '</div></div>';
     }).join('');
     var recent = document.getElementById('recent-list');
-    var items = movArr.slice(0, 5);
+    var items = movArr.slice(0, 6);
     if (!items.length) recent.innerHTML = '<div class="empty">ยังไม่มีรายการ</div>';
     else recent.innerHTML = items.map(function (pair) {
       var m = pair[1], s = skus[m.skuId] || {};
@@ -198,16 +195,14 @@
       var cls = isIn ? 'pos' : isOut ? 'neg' : '';
       var label = isIn ? 'รับเข้า' : isOut ? 'จ่ายออก' : 'ปรับสต็อก';
       var time = (m.date || '').slice(11, 16) || '';
-      return '<div class="list-row"><div class="dot ' + dot + '"></div><div class="list-body"><div class="list-name">' + label + ': ' + (s.name || m.skuId) + '</div><div class="list-meta">' + time + ' · ' + (m.user || '-') + '</div></div><div class="list-qty ' + cls + '">' + pfx + m.pieces + '</div></div>';
+      return '<div class="row"><div class="dot ' + dot + '"></div><div class="row-b"><div class="row-n">' + label + ' · ' + (s.name || m.skuId) + '</div><div class="row-m">' + time + ' · ' + (m.user || '-') + '</div></div><div class="row-q ' + cls + '">' + pfx + m.pieces + '</div></div>';
     }).join('');
     updateChart(ents.slice(0, 6));
     updateProducts(ents);
   }
 
   function updateChart(ents) {
-    var rawLabels = ents.map(function (p) {
-      return (skus[p[0]] || {}).name || p[0];
-    });
+    var rawLabels = ents.map(function (p) { return (skus[p[0]] || {}).name || p[0]; });
     var labels = rawLabels.map(function (n) {
       if (n.length <= 18) return n;
       return n.slice(0, 8) + '…' + n.slice(-7);
@@ -224,49 +219,26 @@
       type: 'bar',
       data: {
         labels: labels,
-        datasets: [{
-          data: data,
-          backgroundColor: '#0F1620',
-          borderRadius: 6,
-          borderSkipped: false,
-          maxBarThickness: 22
-        }]
+        datasets: [{ data: data, backgroundColor: '#0C0E12', borderRadius: 5, borderSkipped: false, maxBarThickness: 20 }]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 300 },
-        layout: { padding: { left: 4, right: 8 } },
+        animation: { duration: 280 },
+        layout: { padding: { left: 2, right: 6 } },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              title: function (items) {
-                var i = items[0].dataIndex;
-                return rawLabels[i] || items[0].label;
-              },
-              label: function (item) {
-                return ' ' + item.raw.toLocaleString() + ' แพ็ค';
-              }
+              title: function (items) { return rawLabels[items[0].dataIndex] || items[0].label; },
+              label: function (item) { return ' ' + item.raw.toLocaleString() + ' แพ็ค'; }
             }
           }
         },
         scales: {
-          x: {
-            beginAtZero: true,
-            grid: { color: '#E8E4DC' },
-            ticks: { font: { size: 10, family: 'IBM Plex Mono' }, color: '#3D4654' }
-          },
-          y: {
-            grid: { display: false },
-            ticks: {
-              font: { size: 11, family: 'Sarabun' },
-              color: '#121820',
-              autoSkip: false,
-              crossAlign: 'far'
-            }
-          }
+          x: { beginAtZero: true, grid: { color: '#E6E1D8' }, ticks: { font: { size: 10, family: 'IBM Plex Mono' }, color: '#8A8F99' } },
+          y: { grid: { display: false }, ticks: { font: { size: 11, family: 'Sarabun' }, color: '#0C0E12', autoSkip: false, crossAlign: 'far' } }
         }
       }
     });
@@ -279,8 +251,94 @@
       var s = skus[pair[0]] || {}, f = fmtStock(pair[1], s);
       var ppc = s.piecesPerCase || 1;
       var meta = (s.unitSku || pair[0].slice(0, 12)) + (ppc > 1 ? ' · ' + ppc + ' ' + bU(s) + '/' + cU(s) : '');
-      return '<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">' + (s.name || pair[0]) + '</div><div class="list-meta">' + meta + '</div></div><div class="list-qty"><div>' + f.main + '</div>' + (f.sub ? '<div class="list-qty-sub">' + f.sub + '</div>' : '') + '</div></div>';
+      return '<div class="row"><div class="row-ico">▢</div><div class="row-b"><div class="row-n">' + (s.name || pair[0]) + '</div><div class="row-m">' + meta + '</div></div><div class="row-q"><div>' + f.main + '</div>' + (f.sub ? '<div class="row-q-sub">' + f.sub + '</div>' : '') + '</div></div>';
     }).join('');
+  }
+
+  function fillSkuSelect() {
+    var sel = document.getElementById('rec-sku');
+    if (!sel) return;
+    var cur = sel.value;
+    var opts = Object.entries(skus).sort(function (a, b) {
+      return (a[1].name || '').localeCompare(b[1].name || '', 'th');
+    });
+    sel.innerHTML = '<option value="">เลือกสินค้า…</option>' + opts.map(function (e) {
+      return '<option value="' + e[0] + '">' + (e[1].name || e[0]) + '</option>';
+    }).join('');
+    if (cur && skus[cur]) sel.value = cur;
+  }
+
+  function openRec(type) {
+    recType = type || 'in';
+    curPlat = '';
+    curAdjDir = 'plus';
+    document.querySelectorAll('#rec-seg button').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-type') === recType);
+    });
+    document.querySelectorAll('#adj-seg button').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-dir') === curAdjDir);
+    });
+    document.querySelectorAll('#plat-btns button').forEach(function (b) { b.classList.remove('on'); });
+    document.getElementById('plat-other-wrap').style.display = 'none';
+    document.getElementById('plat-wrap').style.display = recType === 'out' ? 'block' : 'none';
+    document.getElementById('adj-wrap').style.display = recType === 'adj' ? 'block' : 'none';
+    var titles = { in: 'รับเข้า', out: 'จ่ายออก', adj: 'ปรับสต็อก' };
+    document.getElementById('rec-title').textContent = titles[recType] || 'บันทึก';
+    document.getElementById('rec-qty').value = '';
+    document.getElementById('rec-note').value = '';
+    document.getElementById('rec-date').value = todayStr();
+    document.getElementById('rec-unit').value = 'pack';
+    fillSkuSelect();
+    document.getElementById('rec-ov').classList.add('open');
+  }
+  function closeRec() { document.getElementById('rec-ov').classList.remove('open'); }
+  function getPcs() {
+    var qty = parseFloat(document.getElementById('rec-qty').value) || 0;
+    var unit = document.getElementById('rec-unit').value;
+    var id = document.getElementById('rec-sku').value;
+    if (unit === 'case' && id && skus[id]) return qty * (skus[id].piecesPerCase || 1);
+    return qty;
+  }
+  function getPlatLabel() {
+    if (!curPlat) return '';
+    if (curPlat === 'other') return document.getElementById('plat-other').value.trim() || 'อื่นๆ';
+    return PLAT_MAP[curPlat] || curPlat;
+  }
+  function submitRec() {
+    var skuId = document.getElementById('rec-sku').value;
+    var qty = parseFloat(document.getElementById('rec-qty').value);
+    var date = document.getElementById('rec-date').value;
+    var note = document.getElementById('rec-note').value.trim();
+    if (!skuId) { toast('กรุณาเลือกสินค้า'); return; }
+    if (!qty || qty <= 0) { toast('กรุณากรอกจำนวน'); return; }
+    if (!date) { toast('กรุณากรอกวันที่'); return; }
+    var pieces = getPcs();
+    var unit = document.getElementById('rec-unit').value;
+    var platform = recType === 'out' ? getPlatLabel() : '';
+    var rec = {
+      skuId: skuId,
+      type: recType,
+      qty: qty,
+      unit: unit,
+      pieces: pieces,
+      date: date,
+      note: note,
+      platform: platform,
+      user: user,
+      createdAt: Date.now()
+    };
+    if (recType === 'adj') rec.adjDir = curAdjDir;
+    apiPost(rp() + '/movements', rec).then(function (key) {
+      if (key) movements[key] = rec;
+      movArr = Object.entries(movements).sort(function (a, b) {
+        return (b[1].createdAt || 0) - (a[1].createdAt || 0);
+      });
+      updateDash();
+      toast('บันทึกสำเร็จ');
+      closeRec();
+    }).catch(function (e) {
+      toast('เกิดข้อผิดพลาด: ' + (e.message || e));
+    });
   }
 
   function loadOverview() {
@@ -324,10 +382,10 @@
           }
         });
         var totalStock = Object.values(sm).reduce(function (a, b) { return a + (b > 0 ? b : 0); }, 0);
-        html += '<div class="wh-card"><div class="wh-badge ' + wh.badge + '">' + wh.label.replace('คลัง ', '') + '</div><div class="wh-info"><div class="wh-name">' + wh.label + '</div><div class="wh-meta">SKU ' + Object.keys(skusW).length + ' · สต็อก ' + totalStock + ' · +' + whIn + '/−' + whOut + ' วันนี้</div></div><button type="button" class="wh-btn" data-wh="' + wh.id + '">เปิด</button></div>';
+        html += '<div class="wh-c"><div class="wh-b">' + wh.label.replace('คลัง ', '') + '</div><div class="wh-i"><div class="wh-n">' + wh.label + '</div><div class="wh-m">SKU ' + Object.keys(skusW).length + ' · สต็อก ' + totalStock + ' · +' + whIn + '/−' + whOut + '</div></div><button type="button" class="wh-btn" data-wh="' + wh.id + '">เปิด</button></div>';
         next();
       }).catch(function () {
-        html += '<div class="wh-card"><div class="wh-badge ' + wh.badge + '">?</div><div class="wh-info"><div class="wh-name">' + wh.label + '</div><div class="wh-meta">ไม่มีข้อมูล</div></div></div>';
+        html += '<div class="wh-c"><div class="wh-b">?</div><div class="wh-i"><div class="wh-n">' + wh.label + '</div><div class="wh-m">ไม่มีข้อมูล</div></div></div>';
         next();
       });
     }
@@ -335,19 +393,12 @@
   }
 
   function showPage(name, el) {
-    if (name === 'allwh') {
-      document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
-      document.getElementById('page-allwh').classList.add('active');
-      document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.remove('active'); });
-      if (el) el.classList.add('active');
-      loadOverview();
-      return;
-    }
     document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
     var page = document.getElementById('page-' + name);
     if (page) page.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.remove('active'); });
-    if (el) el.classList.add('active');
+    document.querySelectorAll('.ni[data-page]').forEach(function (b) { b.classList.remove('on'); });
+    if (el) el.classList.add('on');
+    if (name === 'allwh') loadOverview();
     if (name === 'dash') poll();
   }
   function switchWarehouse(whId) {
@@ -358,7 +409,7 @@
     skus = {}; movements = {}; movArr = []; lastChartKey = '';
     if (chart) { try { chart.destroy(); } catch (e) {} chart = null; }
     showPage('dash', document.querySelector('[data-page="dash"]'));
-    toast('เปลี่ยนเป็น ' + (wh ? wh.label : whId), 'ok');
+    toast('เปลี่ยนเป็น ' + (wh ? wh.label : whId));
     poll();
   }
   function cycleWarehouse() {
@@ -428,15 +479,15 @@
     document.getElementById('od-total').textContent = total.toLocaleString();
     document.getElementById('od-skucount').textContent = ents.length;
     var listEl = document.getElementById('od-list');
-    if (!ents.length) listEl.innerHTML = '<div class="empty">ยังไม่มีการจ่ายออก' + (isToday ? 'วันนี้' : 'ในวันที่เลือก') + '</div>';
+    if (!ents.length) listEl.innerHTML = '<div class="empty">ยังไม่มีการจ่ายออก' + (isToday ? 'วันนี้' : '') + '</div>';
     else listEl.innerHTML = ents.map(function (pair) {
       var s = skus[pair[0]] || {}, f = fmtStock(pair[1], s);
-      return '<div class="od-row"><div class="od-row-name">' + (s.name || pair[0]) + '</div><div><div class="od-row-qty">' + f.main + '</div><div class="od-row-sub">' + (f.sub || ('รวม ' + pair[1] + ' ' + bU(s))) + '</div></div></div>';
+      return '<div class="od-row"><div class="od-rn">' + (s.name || pair[0]) + '</div><div><div class="od-rq">' + f.main + '</div><div class="od-rs">' + (f.sub || '') + '</div></div></div>';
     }).join('');
     [chOutPie, chOutBar, chOutPlat].forEach(function (c) { if (c) { try { c.destroy(); } catch (e) {} } });
     chOutPie = chOutBar = chOutPlat = null;
     document.getElementById('od-overlay').classList.add('open');
-    var colors = ['#C45C4A', '#C48A3A', '#A8894E', '#6B5B8A', '#4A7AB5', '#2D8A5C'];
+    var colors = ['#A8483A', '#B8956C', '#2F6B4F', '#6B5B8A', '#3A5A7A', '#8A6B4A'];
     var rawLabels = ents.map(function (p) { return (skus[p[0]] || {}).name || p[0]; });
     var labels = rawLabels.map(function (n) { return n.length > 14 ? n.slice(0, 13) + '…' : n; });
     var data = ents.map(function (p) { return p[1]; });
@@ -447,14 +498,14 @@
       if (pieEl && ents.length) {
         chOutPie = new Chart(pieEl, {
           type: 'doughnut',
-          data: { labels: rawLabels, datasets: [{ data: data, backgroundColor: colors.slice(0, ents.length), borderWidth: 2, borderColor: '#FFFEFA' }] },
+          data: { labels: rawLabels, datasets: [{ data: data, backgroundColor: colors.slice(0, ents.length), borderWidth: 2, borderColor: '#FFFEFB' }] },
           options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 11 }, padding: 8, boxWidth: 10, usePointStyle: true } } } }
         });
       }
       if (barEl && ents.length) {
         chOutBar = new Chart(barEl, {
           type: 'bar',
-          data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, ents.length).map(function (c) { return c + '99'; }), borderColor: colors.slice(0, ents.length), borderWidth: 2, borderRadius: 6 }] },
+          data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, ents.length).map(function (c) { return c + '99'; }), borderColor: colors.slice(0, ents.length), borderWidth: 1.5, borderRadius: 5 }] },
           options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true }, y: { ticks: { font: { family: 'Sarabun', size: 11 } } } } }
         });
       }
@@ -462,7 +513,7 @@
       if (platEl && platEnts.length) {
         chOutPlat = new Chart(platEl, {
           type: 'doughnut',
-          data: { labels: platEnts.map(function (p) { return p[0]; }), datasets: [{ data: platEnts.map(function (p) { return p[1]; }), backgroundColor: ['#0F1620', '#A8894E', '#2D8A5C', '#C45C4A', '#6B5B8A'], borderWidth: 2, borderColor: '#FFFEFA' }] },
+          data: { labels: platEnts.map(function (p) { return p[0]; }), datasets: [{ data: platEnts.map(function (p) { return p[1]; }), backgroundColor: ['#0C0E12', '#B8956C', '#2F6B4F', '#A8483A', '#6B5B8A'], borderWidth: 2, borderColor: '#FFFEFB' }] },
           options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 11 }, padding: 8, boxWidth: 10, usePointStyle: true } } } }
         });
       }
@@ -481,56 +532,75 @@
     user = '';
     sessionStorage.clear();
     document.getElementById('app').style.display = 'none';
-    document.getElementById('passcode-screen').style.display = 'flex';
+    document.getElementById('pc').style.display = 'flex';
     pcBuffer = '';
     updateDots();
   }
 
   function bindUI() {
     buildPasscodeUI();
-    var btnLogin = document.getElementById('btn-login');
-    if (btnLogin) btnLogin.addEventListener('click', doLogin);
-    var btnBack = document.getElementById('btn-back');
-    if (btnBack) btnBack.addEventListener('click', backToPasscode);
-    var whChip = document.getElementById('wh-chip');
-    if (whChip) whChip.addEventListener('click', cycleWarehouse);
-    var cardOut = document.getElementById('card-out');
-    if (cardOut) cardOut.addEventListener('click', function () { showOutDetail(); });
-    var btnScan = document.getElementById('btn-scan');
-    if (btnScan) btnScan.addEventListener('click', function () { toast('ฟีเจอร์สแกน QR จะเพิ่มในอัปเดตถัดไป'); });
-    var btnLogout = document.getElementById('btn-logout');
-    if (btnLogout) btnLogout.addEventListener('click', doLogout);
-    var odClose = document.getElementById('od-close');
-    if (odClose) odClose.addEventListener('click', closeOutDetail);
-    var odPrev = document.getElementById('od-prev');
-    if (odPrev) odPrev.addEventListener('click', function () {
+    document.getElementById('btn-login').addEventListener('click', doLogin);
+    document.getElementById('btn-back').addEventListener('click', backToPasscode);
+    document.getElementById('wh-chip').addEventListener('click', cycleWarehouse);
+    document.getElementById('card-out').addEventListener('click', function () { showOutDetail(); });
+    document.getElementById('btn-scan').addEventListener('click', function () { openRec('in'); });
+    document.getElementById('btn-logout').addEventListener('click', doLogout);
+    document.getElementById('od-close').addEventListener('click', closeOutDetail);
+    document.getElementById('od-prev').addEventListener('click', function () {
       showOutDetail(shiftDateStr(outDetailDate || todayStr(), -1));
     });
-    var odNext = document.getElementById('od-next');
-    if (odNext) odNext.addEventListener('click', function () {
+    document.getElementById('od-next').addEventListener('click', function () {
       if ((outDetailDate || todayStr()) >= todayStr()) return;
       showOutDetail(shiftDateStr(outDetailDate, 1));
     });
-    var odToday = document.getElementById('od-today');
-    if (odToday) odToday.addEventListener('click', function () { showOutDetail(todayStr()); });
-    var odOverlay = document.getElementById('od-overlay');
-    if (odOverlay) odOverlay.addEventListener('click', function (e) {
+    document.getElementById('od-today').addEventListener('click', function () { showOutDetail(todayStr()); });
+    document.getElementById('od-overlay').addEventListener('click', function (e) {
       if (e.target === this) closeOutDetail();
     });
-    document.querySelectorAll('.nav-item[data-page]').forEach(function (btn) {
+    document.getElementById('rec-close').addEventListener('click', closeRec);
+    document.getElementById('rec-ov').addEventListener('click', function (e) {
+      if (e.target === this) closeRec();
+    });
+    document.getElementById('rec-submit').addEventListener('click', submitRec);
+    document.querySelectorAll('#rec-seg button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        recType = b.getAttribute('data-type');
+        document.querySelectorAll('#rec-seg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        document.getElementById('plat-wrap').style.display = recType === 'out' ? 'block' : 'none';
+        document.getElementById('adj-wrap').style.display = recType === 'adj' ? 'block' : 'none';
+        var titles = { in: 'รับเข้า', out: 'จ่ายออก', adj: 'ปรับสต็อก' };
+        document.getElementById('rec-title').textContent = titles[recType];
+      });
+    });
+    document.querySelectorAll('#adj-seg button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        curAdjDir = b.getAttribute('data-dir');
+        document.querySelectorAll('#adj-seg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+      });
+    });
+    document.querySelectorAll('#plat-btns button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        curPlat = b.getAttribute('data-p');
+        document.querySelectorAll('#plat-btns button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        document.getElementById('plat-other-wrap').style.display = curPlat === 'other' ? 'block' : 'none';
+      });
+    });
+    document.querySelectorAll('.ni[data-page]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         showPage(btn.getAttribute('data-page'), btn);
       });
     });
-    var awList = document.getElementById('aw-wh-list');
-    if (awList) awList.addEventListener('click', function (e) {
+    document.getElementById('aw-wh-list').addEventListener('click', function (e) {
       var b = e.target.closest('[data-wh]');
       if (b) switchWarehouse(b.getAttribute('data-wh'));
     });
     var ln = document.getElementById('login-name');
     if (ln) ln.addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
     document.addEventListener('keydown', function (e) {
-      var pc = document.getElementById('passcode-screen');
+      var pc = document.getElementById('pc');
       if (!pc || pc.style.display === 'none') return;
       if (e.key >= '0' && e.key <= '9') pcKey(e.key);
       else if (e.key === 'Backspace') pcDel();
@@ -544,16 +614,12 @@
     if (sw && su) {
       currentWsKey = sw;
       user = su;
-      document.getElementById('passcode-screen').style.display = 'none';
+      document.getElementById('pc').style.display = 'none';
       startApp();
     } else {
-      document.getElementById('passcode-screen').style.display = 'flex';
+      document.getElementById('pc').style.display = 'flex';
     }
   }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
