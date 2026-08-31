@@ -3,211 +3,264 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#F0EDE6">
-<title>StockFlow v2</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#F5F2EC">
+<title>StockFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-:root{--bg:#F0EDE6;--surface:#FFFEFA;--surface2:#E8E4DC;--border:#D9D3C8;--text:#121820;--text2:#3D4654;--text3:#6B7380;--navy:#0F1620;--gold:#A8894E;--gold-soft:#EDE4D4;--gold-border:#D4C4A8;--green:#2D8A5C;--green-soft:#E8F5EF;--red:#C45C4A;--red-soft:#F9ECE9;--orange:#C48A3A;--orange-soft:#FBF7F0;--purple:#6B5B8A;--purple-soft:#F0EDF5;--shadow:0 2px 12px rgba(15,22,32,.07);--shadow-lg:0 8px 32px rgba(15,22,32,.12);--radius:18px;--nav-h:72px;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
+:root{
+  --bg:#F5F2EC;--paper:#FFFEFB;--line:#E6E1D8;--line2:#D4CFC5;
+  --ink:#0C0E12;--ink2:#3A3F4A;--ink3:#8A8F99;
+  --gold:#B8956C;--gold-soft:#F3EDE3;--gold-line:#D9C9B0;
+  --ok:#2F6B4F;--ok-soft:#E8F2EC;--bad:#A8483A;--bad-soft:#F8EBE8;
+  --shadow:0 1px 2px rgba(12,14,18,.04),0 8px 24px rgba(12,14,18,.06);
+  --shadow-lg:0 12px 40px rgba(12,14,18,.12);
+  --r:20px;--r-sm:12px;
+  --nav:76px;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;font-family:Sarabun,system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
-button{font-family:inherit;cursor:pointer;border:none;background:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
-input{font-family:inherit}
-#passcode-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,#F0EDE6,#E8E0D4);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;padding-top:calc(24px + var(--safe-top))}
-.pc-logo{text-align:center;margin-bottom:28px}
-.pc-cube{width:56px;height:56px;margin:0 auto 12px;background:linear-gradient(135deg,#0F1620 40%,#A8894E);border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;box-shadow:0 6px 20px rgba(15,22,32,.18)}
-.pc-brand{font-size:26px;font-weight:700}.pc-brand span{color:var(--gold)}
-.pc-sub{font-size:12px;color:var(--text3);margin-top:4px;letter-spacing:.5px}
-.pc-label{font-size:14px;color:var(--text2);margin-bottom:16px;font-weight:500}
-.pc-dots{display:flex;gap:12px;margin-bottom:24px}
-.pc-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--gold-border);transition:.15s}
-.pc-dot.on{background:var(--gold);border-color:var(--gold)}
-.pc-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px}
-.pc-key{height:64px;border-radius:16px;background:var(--surface);box-shadow:var(--shadow);font-size:22px;font-weight:600;color:var(--navy);font-family:'IBM Plex Mono',monospace}
-.pc-key:active{transform:scale(.94);background:var(--gold-soft)}
+html,body{height:100%;font-family:Sarabun,system-ui,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;font-weight:400}
+button{font-family:inherit;cursor:pointer;border:none;background:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+input,select,textarea{font-family:inherit;font-size:16px}
+#pc{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;padding-top:calc(28px + var(--st))}
+.pc-mark{width:48px;height:48px;border-radius:14px;background:var(--ink);display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:var(--shadow)}
+.pc-mark span{color:var(--gold);font-size:18px;font-weight:600}
+.pc-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
+.pc-sub{font-size:13px;color:var(--ink3);margin-bottom:28px;font-weight:400}
+.pc-dots{display:flex;gap:10px;margin-bottom:28px}
+.pc-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--gold-line);transition:.15s}
+.pc-dot.on{background:var(--gold);border-color:var(--gold);transform:scale(1.1)}
+.pc-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:264px}
+.pc-key{height:60px;border-radius:16px;background:var(--paper);border:1px solid var(--line);font-size:20px;font-weight:500;color:var(--ink);font-family:'IBM Plex Mono',monospace;box-shadow:0 1px 0 rgba(12,14,18,.03)}
+.pc-key:active{background:var(--gold-soft);transform:scale(.96)}
 .pc-key.ghost{visibility:hidden;pointer-events:none}
-.pc-hint{margin-top:24px;text-align:center;font-size:12px;color:var(--text3);line-height:1.5}
-#login-screen{position:fixed;inset:0;z-index:99;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
-.login-brand{font-size:26px;font-weight:700;margin-bottom:4px}.login-brand span{color:var(--gold)}
-.login-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
-.login-form{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px}
-.ws-chip{background:var(--gold-soft);border:1px solid var(--gold-border);border-radius:12px;padding:12px;font-size:13px;font-weight:600;text-align:center}
-.ws-chip code{font-family:'IBM Plex Mono',monospace;color:var(--gold)}
-.field{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:4px 16px;box-shadow:var(--shadow)}
-.field label{display:block;font-size:12px;color:var(--text3);margin-top:10px;font-weight:500}
-.field input{width:100%;border:none;outline:none;font-size:16px;padding:8px 0 12px;background:transparent}
-.btn-primary{width:100%;padding:16px;background:var(--navy);color:#fff;border-radius:18px;font-size:16px;font-weight:600}
-.back-link{text-align:center;font-size:14px;color:var(--text3);text-decoration:underline}
+.pc-hint{margin-top:24px;font-size:12px;color:var(--ink3);text-align:center}
+#login{position:fixed;inset:0;z-index:900;display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px;background:var(--bg)}
+.login-title{font-size:22px;font-weight:600;margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--ink3);margin-bottom:28px}
+.login-box{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px}
+.ws-tag{background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;font-weight:500;text-align:center;color:var(--ink2)}
+.ws-tag code{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-weight:600}
+.field{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.field label{display:block;font-size:11px;color:var(--ink3);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;border:none;outline:none;background:transparent;color:var(--ink);font-size:16px}
+.btn{width:100%;padding:16px;border-radius:var(--r);font-size:15px;font-weight:600;transition:.15s}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-ink:active{opacity:.85}
+.btn-ghost{background:transparent;color:var(--ink3);font-weight:500;font-size:14px;text-decoration:underline;padding:8px}
 #app{height:100%;display:none;flex-direction:column;background:var(--bg)}
-.topbar{background:var(--surface);padding:12px 16px;padding-top:calc(12px + var(--safe-top));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0}
-.top-logo{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700}
-.top-logo .cube{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#0F1620 45%,#A8894E);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
-.top-logo span{color:var(--gold)}
-.wh-chip{display:flex;align-items:center;gap:6px;background:var(--gold-soft);border:1px solid var(--gold-border);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600}
+.top{background:var(--paper);padding:14px 18px;padding-top:calc(14px + var(--st));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);flex-shrink:0}
+.brand{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;letter-spacing:-.02em}
+.brand-mark{width:26px;height:26px;border-radius:8px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:11px}
+.wh{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:100px;padding:7px 12px;font-size:12px;font-weight:500;color:var(--ink2)}
 .main{flex:1;overflow:hidden;position:relative;min-height:0}
-.page{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:16px;padding-bottom:calc(var(--nav-h)+28px);gap:14px;-webkit-overflow-scrolling:touch}
+.page{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:18px;padding-bottom:calc(var(--nav)+24px);gap:14px;-webkit-overflow-scrolling:touch}
 .page.active{display:flex}.page>*{flex-shrink:0}
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.stat-card{background:var(--surface);border-radius:14px;padding:12px 8px;border:1px solid var(--border);box-shadow:var(--shadow);text-align:center}
-.stat-icon{width:32px;height:32px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:14px}
-.stat-icon.navy{background:#E4E8EE;color:var(--navy)}.stat-icon.gold{background:var(--gold-soft);color:var(--gold)}.stat-icon.green{background:var(--green-soft);color:var(--green)}.stat-icon.red{background:var(--red-soft);color:var(--red)}
-.stat-val{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:700;color:var(--navy)}
-.stat-lbl{font-size:10px;color:var(--text2);font-weight:600;margin-top:2px}
-.card{background:var(--surface);border-radius:18px;border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
-.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;font-size:14px;font-weight:700}
-.chart-wrap{padding:8px 12px 16px;height:280px;min-height:280px;position:relative}
-.list-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.list-row:last-child{border-bottom:none}
-.list-icon{width:36px;height:36px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.list-body{flex:1;min-width:0}
-.list-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.list-meta{font-size:11px;color:var(--text3);margin-top:2px}
-.list-qty{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:var(--navy);flex-shrink:0;text-align:right;line-height:1.25}
-.list-qty-sub{font-size:10px;font-weight:500;color:var(--text3);margin-top:2px;font-family:Sarabun,sans-serif}
-.list-qty.pos{color:var(--green)}.list-qty.neg{color:var(--red)}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.dot.g{background:var(--green)}.dot.r{background:var(--red)}.dot.o{background:var(--orange)}
-.empty{padding:32px 16px;text-align:center;color:var(--text3);font-size:13px}
-.page-title{font-size:24px;font-weight:700}
-.hero{background:linear-gradient(145deg,#0F1620,#1A2433);border-radius:20px;padding:18px;color:#fff;box-shadow:var(--shadow-lg)}
-.hero-lbl{font-size:11px;font-weight:600;color:rgba(255,255,255,.45);margin-bottom:12px}
-.hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.hero-kpi{text-align:center}.hero-kpi .v{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:#C9A84C}.hero-kpi .l{font-size:10px;color:rgba(255,255,255,.45);margin-top:4px}
-.val-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.val-card{background:var(--surface);border-radius:14px;padding:14px;border:1px solid var(--border)}
-.val-card .ic{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;margin-bottom:8px}
-.val-card.cost .ic{background:var(--orange-soft)}.val-card.sale .ic{background:var(--green-soft)}.val-card.profit .ic{background:var(--purple-soft)}.val-card.sold .ic{background:#E4E8EE}
-.val-card .lbl{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px}
-.val-card .num{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700}
-.val-card.cost .num{color:var(--orange)}.val-card.sale .num{color:var(--green)}.val-card.profit .num{color:var(--purple)}.val-card.sold .num{color:var(--navy)}
-.note-bar{padding:12px 14px;background:var(--gold-soft);border:1px solid var(--gold-border);border-radius:12px;font-size:12px;color:var(--navy);font-weight:500}
-.sec-title{font-size:13px;font-weight:700;color:var(--text2)}
-.wh-card{background:var(--surface);border-radius:14px;padding:14px 16px;border:1px solid var(--border);display:flex;align-items:center;gap:12px}
-.wh-badge{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
-.wh-badge.a{background:#EDE4D4;color:var(--gold)}.wh-badge.b{background:var(--green-soft);color:var(--green)}.wh-badge.c{background:var(--purple-soft);color:var(--purple)}
-.wh-info{flex:1;min-width:0}.wh-name{font-size:14px;font-weight:600}.wh-meta{font-size:11px;color:var(--text3);margin-top:2px}
-.wh-btn{background:var(--navy);color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600}
-.bottom-nav{position:absolute;bottom:0;left:0;right:0;padding:0 12px;padding-bottom:calc(8px + var(--safe-bottom));pointer-events:none;z-index:50}
-.nav-inner{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:var(--surface);border-radius:28px;padding:8px 6px;box-shadow:var(--shadow-lg);border:1px solid var(--border);max-width:420px;margin:0 auto}
-.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--text3);font-size:10px;font-weight:600}
-.nav-item.active{color:var(--navy)}.nav-item .ico{font-size:20px}
-.nav-scan{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#C4A05A,#A8894E);display:flex;align-items:center;justify-content:center;margin-top:-22px;box-shadow:0 4px 20px rgba(168,137,78,.45);border:3px solid var(--bg);color:#0F1620;font-size:22px}
-.toast-wrap{position:fixed;top:calc(var(--safe-top)+60px);left:50%;transform:translateX(-50%);z-index:200;pointer-events:none}
-.toast{background:rgba(15,22,32,.94);color:#fff;padding:11px 22px;border-radius:24px;font-size:13px;font-weight:600}
-.od-overlay{position:fixed;inset:0;background:rgba(15,22,32,.45);z-index:300;display:none;align-items:flex-end;justify-content:center}
-.od-overlay.open{display:flex}
-.od-sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;padding-bottom:calc(16px + var(--safe-bottom))}
-.od-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface)}
-.od-title{font-size:17px;font-weight:700;color:var(--red)}
-.od-close{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);font-size:14px}
-.od-date-row{display:flex;align-items:center;gap:8px;padding:12px 18px 6px}
-.od-date-btn{width:34px;height:34px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);font-size:16px;font-weight:700}
-.od-date-lbl{flex:1;text-align:center;font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace}
-.od-today-btn{padding:0 12px;height:34px;border-radius:10px;background:var(--gold-soft);border:1px solid var(--gold-border);font-size:12px;font-weight:700;display:none}
-.od-kpi{display:flex;gap:10px;padding:10px 18px}
-.od-kpi-card{flex:1;border-radius:14px;padding:12px;text-align:center;border:1px solid}
-.od-kpi-card.red{background:var(--red-soft);border-color:#E8C5BE}.od-kpi-card.gray{background:var(--surface2);border-color:var(--border)}
-.od-kpi-val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700}.od-kpi-card.red .od-kpi-val{color:var(--red)}
-.od-kpi-lbl{font-size:11px;color:var(--text2);font-weight:600;margin-top:2px}
-.od-sec{padding:12px 18px 4px;font-size:12px;font-weight:700;color:var(--text2)}
-.od-chart{position:relative;width:100%;height:200px;padding:0 12px 8px}
-.od-row{display:flex;align-items:center;padding:11px 18px;border-bottom:1px solid var(--border);gap:10px}
-.od-row-name{flex:1;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.od-row-qty{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:var(--red);text-align:right}
-.od-row-sub{font-size:11px;color:var(--text3);text-align:right}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center;box-shadow:var(--shadow)}
+.kpi.tap{border-color:#E8C5BE;background:var(--bad-soft)}
+.kpi-v{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;color:var(--ink);letter-spacing:-.02em}
+.kpi.tap .kpi-v{color:var(--bad)}
+.kpi-l{font-size:10px;color:var(--ink3);font-weight:500;margin-top:4px;letter-spacing:.02em}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px;font-size:13px;font-weight:600;color:var(--ink2);letter-spacing:.01em}
+.chart-box{padding:4px 12px 16px;height:280px;position:relative}
+.row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row-ico{width:36px;height:36px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid var(--line)}
+.row-b{flex:1;min-width:0}
+.row-n{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-m{font-size:11px;color:var(--ink3);margin-top:2px}
+.row-q{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;text-align:right;line-height:1.3;flex-shrink:0}
+.row-q-sub{font-size:10px;font-weight:400;color:var(--ink3);font-family:Sarabun,sans-serif;margin-top:2px}
+.row-q.pos{color:var(--ok)}.row-q.neg{color:var(--bad)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.g{background:var(--ok)}.dot.r{background:var(--bad)}.dot.o{background:var(--gold)}
+.empty{padding:36px 16px;text-align:center;color:var(--ink3);font-size:13px}
+.pt{font-size:22px;font-weight:600;letter-spacing:-.03em}
+.hero{background:var(--ink);border-radius:var(--r);padding:20px;color:#fff;box-shadow:var(--shadow-lg)}
+.hero-l{font-size:11px;font-weight:500;color:rgba(255,255,255,.4);margin-bottom:14px;letter-spacing:.04em;text-transform:uppercase}
+.hero-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.hero-k{text-align:center}
+.hero-k .v{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--gold)}
+.hero-k .l{font-size:10px;color:rgba(255,255,255,.35);margin-top:4px}
+.val-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.val{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px}
+.val .l{font-size:11px;color:var(--ink3);font-weight:500;margin-bottom:6px}
+.val .n{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600}
+.val.cost .n{color:#A67C3D}.val.sale .n{color:var(--ok)}.val.profit .n{color:#6B5B8A}.val.sold .n{color:var(--ink)}
+.note{padding:12px 14px;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:var(--r-sm);font-size:12px;color:var(--ink2);font-weight:500}
+.sec{font-size:12px;font-weight:600;color:var(--ink3);letter-spacing:.04em;text-transform:uppercase}
+.wh-c{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.wh-b{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;background:var(--bg);border:1px solid var(--line);color:var(--ink2)}
+.wh-i{flex:1;min-width:0}.wh-n{font-size:14px;font-weight:500}.wh-m{font-size:11px;color:var(--ink3);margin-top:2px}
+.wh-btn{background:var(--ink);color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600}
+.bnav{position:absolute;bottom:0;left:0;right:0;padding:0 14px;padding-bottom:calc(10px + var(--sb));pointer-events:none;z-index:50}
+.bnav-i{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:var(--paper);border-radius:28px;padding:8px 6px;box-shadow:var(--shadow-lg);border:1px solid var(--line);max-width:420px;margin:0 auto}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--ink3);font-size:10px;font-weight:500}
+.ni.on{color:var(--ink)}
+.ni .ic{font-size:18px;line-height:1}
+.ns{width:52px;height:52px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 6px 20px rgba(12,14,18,.25);border:3px solid var(--bg);color:var(--gold);font-size:20px}
+.ov{position:fixed;inset:0;background:rgba(12,14,18,.4);z-index:300;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.ov.open{display:flex}
+.sheet{background:var(--paper);border-radius:24px 24px 0 0;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;padding-bottom:calc(20px + var(--sb));box-shadow:var(--shadow-lg)}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:1}
+.sheet-t{font-size:16px;font-weight:600}
+.sheet-x{width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--line);font-size:14px;color:var(--ink2)}
+.sheet-b{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.seg{display:flex;background:var(--bg);border-radius:14px;padding:4px;border:1px solid var(--line)}
+.seg button{flex:1;padding:10px;border-radius:11px;font-size:13px;font-weight:500;color:var(--ink3)}
+.seg button.on{background:var(--paper);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
+.plat{display:flex;flex-wrap:wrap;gap:8px}
+.plat button{padding:8px 14px;border-radius:100px;border:1px solid var(--line);background:var(--bg);font-size:12px;font-weight:500;color:var(--ink2)}
+.plat button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.od-date{display:flex;align-items:center;gap:8px;padding:12px 20px 6px}
+.od-db{width:34px;height:34px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:16px;font-weight:600}
+.od-dl{flex:1;text-align:center;font-size:13px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.od-today{padding:0 12px;height:34px;border-radius:10px;background:var(--gold-soft);border:1px solid var(--gold-line);font-size:12px;font-weight:600;display:none}
+.od-kpi{display:flex;gap:10px;padding:10px 20px}
+.od-k{flex:1;border-radius:14px;padding:14px;text-align:center;border:1px solid var(--line);background:var(--bg)}
+.od-k.bad{background:var(--bad-soft);border-color:#E8C5BE}
+.od-kv{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600}
+.od-k.bad .od-kv{color:var(--bad)}
+.od-kl{font-size:11px;color:var(--ink3);font-weight:500;margin-top:2px}
+.od-sec{padding:12px 20px 4px;font-size:12px;font-weight:600;color:var(--ink3);letter-spacing:.03em;text-transform:uppercase}
+.od-ch{position:relative;width:100%;height:200px;padding:0 12px 8px}
+.od-row{display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);gap:10px}
+.od-rn{flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.od-rq{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--bad);text-align:right}
+.od-rs{font-size:11px;color:var(--ink3);text-align:right}
+.toast-w{position:fixed;top:calc(var(--st)+56px);left:50%;transform:translateX(-50%);z-index:400;pointer-events:none}
+.toast{background:rgba(12,14,18,.94);color:#fff;padding:12px 22px;border-radius:100px;font-size:13px;font-weight:500;white-space:nowrap}
 </style>
 </head>
 <body>
-<div id="passcode-screen">
-  <div class="pc-logo">
-    <div class="pc-cube">▣</div>
-    <div class="pc-brand">Stock<span>Flow</span></div>
-    <div class="pc-sub">QUIET LUXURY · SMART FLOW</div>
-  </div>
-  <div class="pc-label">กรุณาใส่รหัสผ่าน 6 หลัก</div>
+<div id="pc">
+  <div class="pc-mark"><span>SF</span></div>
+  <div class="pc-title">StockFlow</div>
+  <div class="pc-sub">ใส่รหัส Workspace 6 หลัก</div>
   <div class="pc-dots" id="pc-dots"></div>
   <div class="pc-pad" id="pc-pad"></div>
   <div class="pc-hint">รหัสเดียวกัน = ข้อมูลคลังเดียวกัน</div>
 </div>
-<div id="login-screen">
-  <div class="login-brand">Stock<span>Flow</span></div>
-  <div class="login-sub">ระบบจัดการคลังสินค้า · v2</div>
-  <div class="login-form">
-    <div class="ws-chip">🔐 Workspace: <code id="ws-display">------</code></div>
+<div id="login">
+  <div class="login-title">ยินดีต้อนรับ</div>
+  <div class="login-sub">ระบุชื่อเพื่อเริ่มใช้งาน</div>
+  <div class="login-box">
+    <div class="ws-tag">Workspace <code id="ws-display">------</code></div>
     <div class="field"><label>ชื่อผู้ใช้</label><input type="text" id="login-name" placeholder="ชื่อของคุณ" maxlength="30" autocomplete="username"></div>
-    <button type="button" class="btn-primary" id="btn-login">เข้าใช้งาน</button>
-    <div class="back-link" id="btn-back">← เปลี่ยน Workspace</div>
+    <button type="button" class="btn btn-ink" id="btn-login">เข้าใช้งาน</button>
+    <button type="button" class="btn btn-ghost" id="btn-back">← เปลี่ยน Workspace</button>
   </div>
 </div>
 <div id="app">
-  <div class="topbar">
-    <div class="top-logo"><div class="cube">▣</div>Stock<span>Flow</span></div>
-    <div class="wh-chip" id="wh-chip"><span>📍</span> <span id="wh-label">คลัง A</span> ▾</div>
+  <div class="top">
+    <div class="brand"><div class="brand-mark">SF</div>StockFlow</div>
+    <div class="wh" id="wh-chip"><span id="wh-label">คลัง A</span> ▾</div>
   </div>
   <div class="main">
     <div class="page active" id="page-dash">
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-icon navy">⇄</div><div class="stat-val" id="s-today">0</div><div class="stat-lbl">รายการวันนี้</div></div>
-        <div class="stat-card"><div class="stat-icon gold">▣</div><div class="stat-val" id="s-sku">0</div><div class="stat-lbl">SKU ทั้งหมด</div></div>
-        <div class="stat-card"><div class="stat-icon green">↓</div><div class="stat-val" id="s-in">0</div><div class="stat-lbl">รับเข้าวันนี้</div></div>
-        <div class="stat-card" id="card-out" style="cursor:pointer;border-color:#E8C5BE;background:var(--red-soft)"><div class="stat-icon red">↑</div><div class="stat-val" id="s-out" style="color:var(--red)">0</div><div class="stat-lbl" style="color:var(--red)">จ่ายออกวันนี้ · แตะดู</div></div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-v" id="s-today">0</div><div class="kpi-l">วันนี้</div></div>
+        <div class="kpi"><div class="kpi-v" id="s-sku">0</div><div class="kpi-l">SKU</div></div>
+        <div class="kpi"><div class="kpi-v" id="s-in">0</div><div class="kpi-l">รับเข้า</div></div>
+        <div class="kpi tap" id="card-out"><div class="kpi-v" id="s-out">0</div><div class="kpi-l">จ่ายออก · แตะ</div></div>
       </div>
-      <div class="card"><div class="card-hd">ภาพรวมสต็อกสินค้า</div><div class="chart-wrap"><canvas id="stock-chart"></canvas></div></div>
-      <div class="card"><div class="card-hd">สินค้าคงเหลือ <span id="stock-count" style="font-size:12px;color:var(--gold)">0 รายการ</span></div><div id="stock-list"><div class="empty">กำลังโหลด...</div></div></div>
-      <div class="card"><div class="card-hd">กิจกรรมล่าสุด</div><div id="recent-list"><div class="empty">กำลังโหลด...</div></div></div>
+      <div class="card"><div class="card-h">ภาพรวมสต็อก</div><div class="chart-box"><canvas id="stock-chart"></canvas></div></div>
+      <div class="card"><div class="card-h">สินค้าคงเหลือ <span id="stock-count" style="font-size:11px;color:var(--gold);font-weight:500">0</span></div><div id="stock-list"><div class="empty">กำลังโหลด…</div></div></div>
+      <div class="card"><div class="card-h">กิจกรรมล่าสุด</div><div id="recent-list"><div class="empty">กำลังโหลด…</div></div></div>
     </div>
     <div class="page" id="page-allwh">
-      <div class="page-title">ภาพรวม</div>
-      <div class="hero"><div class="hero-lbl">📊 สรุปรวมทุกคลัง · WS-<span id="aw-ws">------</span></div>
-        <div class="hero-grid">
-          <div class="hero-kpi"><div class="v" id="aw-sku">0</div><div class="l">SKU รวม</div></div>
-          <div class="hero-kpi"><div class="v" id="aw-in" style="color:#6BCB9A">0</div><div class="l">รับเข้าวันนี้</div></div>
-          <div class="hero-kpi"><div class="v" id="aw-out" style="color:#E88A7A">0</div><div class="l">จ่ายออกวันนี้</div></div>
+      <div class="pt">ภาพรวม</div>
+      <div class="hero"><div class="hero-l">สรุปรวมทุกคลัง · WS-<span id="aw-ws">------</span></div>
+        <div class="hero-g">
+          <div class="hero-k"><div class="v" id="aw-sku">0</div><div class="l">SKU</div></div>
+          <div class="hero-k"><div class="v" id="aw-in" style="color:#6BCB9A">0</div><div class="l">รับเข้า</div></div>
+          <div class="hero-k"><div class="v" id="aw-out" style="color:#E88A7A">0</div><div class="l">จ่ายออก</div></div>
         </div>
       </div>
-      <div class="sec-title">💰 มูลค่ารวมทุกคลัง</div>
-      <div class="val-grid">
-        <div class="val-card cost"><div class="ic">📦</div><div class="lbl">ต้นทุนสต็อก</div><div class="num" id="aw-cost">฿0</div></div>
-        <div class="val-card sale"><div class="ic">🏷</div><div class="lbl">มูลค่าขาย</div><div class="num" id="aw-sale">฿0</div></div>
-        <div class="val-card profit"><div class="ic">✨</div><div class="lbl">กำไรในสต็อก</div><div class="num" id="aw-profit">฿0</div></div>
-        <div class="val-card sold"><div class="ic">💸</div><div class="lbl">ยอดขายจริง</div><div class="num" id="aw-sold">฿0</div></div>
+      <div class="sec">มูลค่ารวม</div>
+      <div class="val-g">
+        <div class="val cost"><div class="l">ต้นทุนสต็อก</div><div class="n" id="aw-cost">฿0</div></div>
+        <div class="val sale"><div class="l">มูลค่าขาย</div><div class="n" id="aw-sale">฿0</div></div>
+        <div class="val profit"><div class="l">กำไรในสต็อก</div><div class="n" id="aw-profit">฿0</div></div>
+        <div class="val sold"><div class="l">ยอดขายจริง</div><div class="n" id="aw-sold">฿0</div></div>
       </div>
-      <div class="note-bar">🔒 ยอดขายจริงแสดงเฉพาะผู้มีสิทธิ์ (นารินทร์, เบ้น)</div>
-      <div class="sec-title">🏭 รายละเอียดแต่ละคลัง</div>
-      <div id="aw-wh-list"><div class="empty">กำลังโหลด...</div></div>
+      <div class="note">ยอดขายจริงแสดงเฉพาะผู้มีสิทธิ์</div>
+      <div class="sec">แต่ละคลัง</div>
+      <div id="aw-wh-list"><div class="empty">กำลังโหลด…</div></div>
     </div>
     <div class="page" id="page-products">
-      <div class="page-title">สินค้า</div>
-      <div class="card" id="prod-list"><div class="empty">กำลังโหลด...</div></div>
+      <div class="pt">สินค้า</div>
+      <div class="card" id="prod-list"><div class="empty">กำลังโหลด…</div></div>
     </div>
   </div>
-  <div class="bottom-nav"><div class="nav-inner">
-    <button type="button" class="nav-item active" data-page="dash"><span class="ico">🏠</span>หน้าหลัก</button>
-    <button type="button" class="nav-item" data-page="products"><span class="ico">📦</span>สินค้า</button>
-    <button type="button" class="nav-scan" id="btn-scan">▣</button>
-    <button type="button" class="nav-item" data-page="allwh"><span class="ico">📊</span>ภาพรวม</button>
-    <button type="button" class="nav-item" id="btn-logout"><span class="ico">👤</span>โปรไฟล์</button>
+  <div class="bnav"><div class="bnav-i">
+    <button type="button" class="ni on" data-page="dash"><span class="ic">◎</span>หน้าหลัก</button>
+    <button type="button" class="ni" data-page="products"><span class="ic">▢</span>สินค้า</button>
+    <button type="button" class="ns" id="btn-scan">＋</button>
+    <button type="button" class="ni" data-page="allwh"><span class="ic">◈</span>ภาพรวม</button>
+    <button type="button" class="ni" id="btn-logout"><span class="ic">○</span>โปรไฟล์</button>
   </div></div>
 </div>
-<div class="od-overlay" id="od-overlay">
-  <div class="od-sheet">
-    <div class="od-head"><div class="od-title">📤 จ่ายออก</div><button type="button" class="od-close" id="od-close">✕</button></div>
-    <div class="od-date-row">
-      <button type="button" class="od-date-btn" id="od-prev">‹</button>
-      <div class="od-date-lbl" id="od-date-label">-</div>
-      <button type="button" class="od-date-btn" id="od-next">›</button>
-      <button type="button" class="od-today-btn" id="od-today">วันนี้</button>
+<div class="ov" id="rec-ov">
+  <div class="sheet">
+    <div class="sheet-h"><div class="sheet-t" id="rec-title">บันทึกรายการ</div><button type="button" class="sheet-x" id="rec-close">✕</button></div>
+    <div class="sheet-b">
+      <div class="seg" id="rec-seg">
+        <button type="button" class="on" data-type="in">รับเข้า</button>
+        <button type="button" data-type="out">จ่ายออก</button>
+        <button type="button" data-type="adj">ปรับสต็อก</button>
+      </div>
+      <div class="field"><label>สินค้า</label><select id="rec-sku"><option value="">เลือกสินค้า…</option></select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field"><label>จำนวน</label><input type="number" id="rec-qty" inputmode="decimal" min="0" step="any" placeholder="0"></div>
+        <div class="field"><label>หน่วย</label><select id="rec-unit"><option value="pack">แพ็ค</option><option value="case">ลัง</option></select></div>
+      </div>
+      <div class="field"><label>วันที่</label><input type="date" id="rec-date"></div>
+      <div id="plat-wrap" style="display:none">
+        <div class="sec" style="margin-bottom:8px">ช่องทาง</div>
+        <div class="plat" id="plat-btns">
+          <button type="button" data-p="shopee">Shopee</button>
+          <button type="button" data-p="lazada">Lazada</button>
+          <button type="button" data-p="tiktok">TikTok</button>
+          <button type="button" data-p="facebook">Facebook</button>
+          <button type="button" data-p="line">LINE</button>
+          <button type="button" data-p="other">อื่นๆ</button>
+        </div>
+        <div class="field" id="plat-other-wrap" style="display:none;margin-top:10px"><label>ระบุช่องทาง</label><input type="text" id="plat-other" placeholder="ชื่อช่องทาง"></div>
+      </div>
+      <div id="adj-wrap" style="display:none">
+        <div class="seg" id="adj-seg">
+          <button type="button" class="on" data-dir="plus">เพิ่ม (+)</button>
+          <button type="button" data-dir="minus">ลด (−)</button>
+        </div>
+      </div>
+      <div class="field"><label>หมายเหตุ</label><input type="text" id="rec-note" placeholder="ไม่บังคับ"></div>
+      <button type="button" class="btn btn-ink" id="rec-submit">บันทึก</button>
     </div>
-    <div class="od-kpi">
-      <div class="od-kpi-card red"><div class="od-kpi-val" id="od-total">0</div><div class="od-kpi-lbl">รวม (แพ็ค)</div></div>
-      <div class="od-kpi-card gray"><div class="od-kpi-val" id="od-skucount">0</div><div class="od-kpi-lbl">SKU ที่ออก</div></div>
-    </div>
-    <div class="od-sec">สัดส่วนตามสินค้า</div><div class="od-chart"><canvas id="ch-out-pie"></canvas></div>
-    <div class="od-sec">จำนวนที่จ่ายออก (มาก → น้อย)</div><div class="od-chart" style="height:220px"><canvas id="ch-out-bar"></canvas></div>
-    <div class="od-sec">ช่องทางขาย</div><div class="od-chart"><canvas id="ch-out-plat"></canvas></div>
-    <div class="od-sec">รายละเอียดแต่ละ SKU</div><div id="od-list"><div class="empty">ไม่มีข้อมูล</div></div>
   </div>
 </div>
-<div class="toast-wrap" id="toast-wrap"></div>
+<div class="ov" id="od-overlay">
+  <div class="sheet">
+    <div class="sheet-h"><div class="sheet-t" style="color:var(--bad)">จ่ายออก</div><button type="button" class="sheet-x" id="od-close">✕</button></div>
+    <div class="od-date">
+      <button type="button" class="od-db" id="od-prev">‹</button>
+      <div class="od-dl" id="od-date-label">-</div>
+      <button type="button" class="od-db" id="od-next">›</button>
+      <button type="button" class="od-today" id="od-today">วันนี้</button>
+    </div>
+    <div class="od-kpi">
+      <div class="od-k bad"><div class="od-kv" id="od-total">0</div><div class="od-kl">รวม (แพ็ค)</div></div>
+      <div class="od-k"><div class="od-kv" id="od-skucount">0</div><div class="od-kl">SKU</div></div>
+    </div>
+    <div class="od-sec">สัดส่วนสินค้า</div><div class="od-ch"><canvas id="ch-out-pie"></canvas></div>
+    <div class="od-sec">จำนวน (มาก → น้อย)</div><div class="od-ch" style="height:220px"><canvas id="ch-out-bar"></canvas></div>
+    <div class="od-sec">ช่องทาง</div><div class="od-ch"><canvas id="ch-out-plat"></canvas></div>
+    <div class="od-sec">รายละเอียด</div><div id="od-list"><div class="empty">ไม่มีข้อมูล</div></div>
+  </div>
+</div>
+<div class="toast-w" id="toast-wrap"></div>
 <script src="./app.js"></script>
 </body>
 </html>
