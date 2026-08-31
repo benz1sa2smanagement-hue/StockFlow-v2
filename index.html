@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#FAF8F5">
+<meta name="theme-color" content="#F0EDE6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>StockFlow v2</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root {
-  --bg: #FAF8F5;
-  --surface: #FFFFFF;
-  --surface2: #F3F0EB;
-  --border: #EBE6DF;
-  --text: #1A2332;
-  --text2: #5C6570;
-  --text3: #9AA3AD;
-  --navy: #1A2332;
-  --gold: #C4A77D;
-  --gold-soft: #F5F0E8;
-  --gold-border: #E5D9C5;
+  --bg: #F0EDE6;
+  --surface: #FFFEFA;
+  --surface2: #E8E4DC;
+  --border: #D9D3C8;
+  --text: #121820;
+  --text2: #3D4654;
+  --text3: #6B7380;
+  --navy: #0F1620;
+  --gold: #A8894E;
+  --gold-soft: #EDE4D4;
+  --gold-border: #D4C4A8;
   --green: #2D8A5C;
   --green-soft: #E8F5EF;
   --red: #C45C4A;
@@ -30,9 +30,9 @@
   --purple: #6B5B8A;
   --purple-soft: #F0EDF5;
   --blue: #4A7AB5;
-  --shadow: 0 2px 12px rgba(26,35,50,.05);
-  --shadow-md: 0 4px 20px rgba(26,35,50,.07);
-  --shadow-lg: 0 8px 32px rgba(26,35,50,.1);
+  --shadow: 0 2px 12px rgba(15,22,32,.07);
+  --shadow-md: 0 4px 20px rgba(15,22,32,.09);
+  --shadow-lg: 0 8px 32px rgba(15,22,32,.12);
   --radius: 18px;
   --radius-sm: 12px;
   --nav-h: 72px;
@@ -43,25 +43,24 @@
 html, body { height: 100%; font-family: 'Sarabun', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
 input { font-family: inherit; }
-
 #passcode-screen {
   position: fixed; inset: 0; z-index: 100;
-  background: linear-gradient(180deg, #FAF8F5 0%, #F3EFE8 100%);
+  background: linear-gradient(180deg, #F0EDE6 0%, #E8E0D4 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 24px; padding-top: calc(24px + var(--safe-top));
 }
 .pc-logo-wrap { text-align: center; margin-bottom: 36px; }
 .pc-cube {
   width: 56px; height: 56px; margin: 0 auto 14px;
-  background: linear-gradient(135deg, #1A2332 40%, #C4A77D 100%);
+  background: linear-gradient(135deg, #0F1620 40%, #A8894E 100%);
   border-radius: 14px; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 6px 20px rgba(26,35,50,.15);
+  box-shadow: 0 6px 20px rgba(15,22,32,.18);
   font-size: 24px; color: #fff;
 }
 .pc-brand { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
 .pc-brand span { color: var(--gold); }
 .pc-sub { font-size: 13px; color: var(--text3); margin-top: 4px; letter-spacing: .5px; }
-.pc-label { font-size: 14px; color: var(--text2); margin-bottom: 18px; }
+.pc-label { font-size: 14px; color: var(--text2); margin-bottom: 18px; font-weight: 500; }
 .pc-dots { display: flex; gap: 12px; margin-bottom: 28px; }
 .pc-dot {
   width: 14px; height: 14px; border-radius: 50%;
@@ -80,7 +79,6 @@ input { font-family: inherit; }
 .pc-key.empty { background: transparent; box-shadow: none; pointer-events: none; }
 .pc-key.del { color: var(--text2); font-size: 18px; }
 .pc-hint { margin-top: 28px; text-align: center; font-size: 12px; color: var(--text3); line-height: 1.6; max-width: 260px; }
-
 #login-screen {
   position: fixed; inset: 0; z-index: 99; display: none;
   background: var(--bg); flex-direction: column; align-items: center; justify-content: center;
@@ -108,22 +106,22 @@ input { font-family: inherit; }
 .btn-primary {
   width: 100%; padding: 16px; background: var(--navy); color: #fff;
   border-radius: var(--radius); font-size: 16px; font-weight: 600;
-  box-shadow: 0 4px 16px rgba(26,35,50,.2);
+  box-shadow: 0 4px 16px rgba(15,22,32,.25);
 }
 .btn-primary:active { opacity: .9; transform: scale(.98); }
 .back-link { text-align: center; font-size: 14px; color: var(--text3); text-decoration: underline; margin-top: 8px; }
-
 #app { height: 100%; display: none; flex-direction: column; background: var(--bg); }
 .topbar {
   background: var(--surface); padding: 12px 16px;
   padding-top: calc(12px + var(--safe-top));
   display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border); box-shadow: 0 1px 0 rgba(15,22,32,.04);
+  flex-shrink: 0;
 }
 .top-logo { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; }
 .top-logo .cube {
   width: 28px; height: 28px; border-radius: 8px;
-  background: linear-gradient(135deg, #1A2332 45%, #C4A77D 100%);
+  background: linear-gradient(135deg, #0F1620 45%, #A8894E 100%);
   display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px;
 }
 .top-logo span { color: var(--gold); }
@@ -132,14 +130,16 @@ input { font-family: inherit; }
   background: var(--gold-soft); border: 1px solid var(--gold-border);
   border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--navy);
 }
-.main { flex: 1; overflow: hidden; position: relative; }
+.main { flex: 1; overflow: hidden; position: relative; min-height: 0; }
 .page {
   position: absolute; inset: 0; display: none; flex-direction: column;
-  overflow-y: auto; padding: 16px; padding-bottom: calc(var(--nav-h) + 24px);
+  overflow-y: auto; overflow-x: hidden; padding: 16px;
+  padding-bottom: calc(var(--nav-h) + 28px);
   gap: 14px; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .page.active { display: flex; }
-
+.page > * { flex-shrink: 0; }
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .stat-card {
   background: var(--surface); border-radius: 14px; padding: 12px 8px;
@@ -149,27 +149,25 @@ input { font-family: inherit; }
   width: 32px; height: 32px; border-radius: 50%; margin: 0 auto 6px;
   display: flex; align-items: center; justify-content: center; font-size: 14px;
 }
-.stat-icon.navy { background: #EEF1F5; color: var(--navy); }
+.stat-icon.navy { background: #E4E8EE; color: var(--navy); }
 .stat-icon.gold { background: var(--gold-soft); color: var(--gold); }
 .stat-icon.green { background: var(--green-soft); color: var(--green); }
 .stat-icon.red { background: var(--red-soft); color: var(--red); }
 .stat-val {
-  font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 700;
   color: var(--navy); line-height: 1.2;
 }
-.stat-lbl { font-size: 10px; color: var(--text2); font-weight: 500; margin-top: 2px; }
-
+.stat-lbl { font-size: 10px; color: var(--text2); font-weight: 600; margin-top: 2px; }
 .card {
   background: var(--surface); border-radius: var(--radius);
   border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden;
 }
 .card-hd {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px 8px; font-size: 14px; font-weight: 600;
+  padding: 14px 16px 8px; font-size: 14px; font-weight: 700; color: var(--text);
 }
 .card-hd .link { font-size: 12px; color: var(--gold); font-weight: 600; }
-.chart-wrap { padding: 0 12px 16px; height: 180px; position: relative; }
-
+.chart-wrap { padding: 8px 12px 16px; height: 220px; min-height: 220px; position: relative; }
 .list-row {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px; border-bottom: 1px solid var(--border);
@@ -181,10 +179,10 @@ input { font-family: inherit; }
   font-size: 16px; flex-shrink: 0;
 }
 .list-body { flex: 1; min-width: 0; }
-.list-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .list-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
 .list-qty {
-  font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700;
   color: var(--navy); flex-shrink: 0;
 }
 .list-qty.pos { color: var(--green); }
@@ -193,21 +191,18 @@ input { font-family: inherit; }
 .dot.g { background: var(--green); }
 .dot.r { background: var(--red); }
 .dot.o { background: var(--orange); }
-.dot.b { background: var(--blue); }
 .empty { padding: 32px 16px; text-align: center; color: var(--text3); font-size: 13px; }
-
-.page-title { font-size: 24px; font-weight: 700; letter-spacing: -.4px; }
+.page-title { font-size: 24px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
 .hero {
-  background: linear-gradient(145deg, #1A2332 0%, #243044 100%);
+  background: linear-gradient(145deg, #0F1620 0%, #1A2433 100%);
   border-radius: 20px; padding: 18px; color: #fff;
-  box-shadow: var(--shadow-lg); border: 1px solid rgba(196,167,125,.2);
+  box-shadow: var(--shadow-lg); border: 1px solid rgba(168,137,78,.25);
 }
-.hero-lbl { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.4); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 12px; }
+.hero-lbl { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.45); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 12px; }
 .hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .hero-kpi { text-align: center; }
-.hero-kpi .v { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; color: var(--gold); }
-.hero-kpi .l { font-size: 10px; color: rgba(255,255,255,.4); margin-top: 4px; font-weight: 500; }
-
+.hero-kpi .v { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; color: #C9A84C; }
+.hero-kpi .l { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 4px; font-weight: 500; }
 .val-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .val-card {
   background: var(--surface); border-radius: 14px; padding: 14px;
@@ -220,16 +215,13 @@ input { font-family: inherit; }
 .val-card.cost .ic { background: var(--orange-soft); }
 .val-card.sale .ic { background: var(--green-soft); }
 .val-card.profit .ic { background: var(--purple-soft); }
-.val-card.sold .ic { background: #EEF1F5; }
+.val-card.sold .ic { background: #E4E8EE; }
 .val-card .lbl { font-size: 11px; color: var(--text2); font-weight: 600; margin-bottom: 4px; }
-.val-card .num {
-  font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700;
-}
+.val-card .num { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; }
 .val-card.cost .num { color: var(--orange); }
 .val-card.sale .num { color: var(--green); }
 .val-card.profit .num { color: var(--purple); }
 .val-card.sold .num { color: var(--navy); }
-
 .note-bar {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 14px; background: var(--gold-soft);
@@ -237,7 +229,6 @@ input { font-family: inherit; }
   font-size: 12px; color: var(--navy); font-weight: 500; line-height: 1.4;
 }
 .sec-title { font-size: 13px; font-weight: 700; color: var(--text2); letter-spacing: .3px; }
-
 .wh-card {
   background: var(--surface); border-radius: 14px; padding: 14px 16px;
   border: 1px solid var(--border); box-shadow: var(--shadow);
@@ -247,7 +238,7 @@ input { font-family: inherit; }
   width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
   justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;
 }
-.wh-badge.a { background: #F5F0E8; color: var(--gold); }
+.wh-badge.a { background: #EDE4D4; color: var(--gold); }
 .wh-badge.b { background: var(--green-soft); color: var(--green); }
 .wh-badge.c { background: var(--purple-soft); color: var(--purple); }
 .wh-info { flex: 1; min-width: 0; }
@@ -257,7 +248,6 @@ input { font-family: inherit; }
   background: var(--navy); color: #fff; border-radius: 10px;
   padding: 8px 14px; font-size: 12px; font-weight: 600; flex-shrink: 0;
 }
-
 .bottom-nav {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 0 12px; padding-bottom: calc(8px + var(--safe-bottom));
@@ -278,19 +268,18 @@ input { font-family: inherit; }
 .nav-item .ico { font-size: 20px; line-height: 1; }
 .nav-scan {
   width: 52px; height: 52px; border-radius: 50%;
-  background: linear-gradient(135deg, #D4B55A, #C4A77D);
+  background: linear-gradient(135deg, #C4A05A, #A8894E);
   display: flex; align-items: center; justify-content: center;
-  margin-top: -22px; box-shadow: 0 4px 20px rgba(196,167,125,.4);
-  border: 3px solid var(--bg); color: #1A2332; font-size: 22px;
+  margin-top: -22px; box-shadow: 0 4px 20px rgba(168,137,78,.45);
+  border: 3px solid var(--bg); color: #0F1620; font-size: 22px;
   flex-shrink: 0;
 }
-
 .toast-wrap {
   position: fixed; top: calc(var(--safe-top) + 60px); left: 50%;
   transform: translateX(-50%); z-index: 200; pointer-events: none;
 }
 .toast {
-  background: rgba(26,35,50,.92); color: #fff; padding: 11px 22px;
+  background: rgba(15,22,32,.94); color: #fff; padding: 11px 22px;
   border-radius: 24px; font-size: 13px; font-weight: 600;
   box-shadow: var(--shadow-lg); white-space: nowrap;
 }
@@ -299,7 +288,6 @@ input { font-family: inherit; }
 </style>
 </head>
 <body>
-
 <div id="passcode-screen">
   <div class="pc-logo-wrap">
     <div class="pc-cube">▣</div>
@@ -328,7 +316,6 @@ input { font-family: inherit; }
   </div>
   <div class="pc-hint">รหัสเดียวกัน = ข้อมูลคลังเดียวกัน<br>ใช้ร่วมกับทุกคนใน Workspace</div>
 </div>
-
 <div id="login-screen">
   <div class="login-brand">Stock<span>Flow</span></div>
   <div class="login-sub">ระบบจัดการคลังสินค้า · v2</div>
@@ -342,62 +329,36 @@ input { font-family: inherit; }
     <div class="back-link" onclick="backToPasscode()">← เปลี่ยน Workspace</div>
   </div>
 </div>
-
 <div id="app">
   <div class="topbar">
-    <div class="top-logo">
-      <div class="cube">▣</div>
-      Stock<span>Flow</span>
-    </div>
+    <div class="top-logo"><div class="cube">▣</div>Stock<span>Flow</span></div>
     <div class="wh-chip" id="wh-chip" onclick="cycleWarehouse()">
       <span>📍</span> <span id="wh-label">คลัง A</span> ▾
     </div>
   </div>
-
   <div class="main">
     <div class="page active" id="page-dash">
       <div class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-icon navy">⇄</div>
-          <div class="stat-val" id="s-today">0</div>
-          <div class="stat-lbl">รายการวันนี้</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon gold">▣</div>
-          <div class="stat-val" id="s-sku">0</div>
-          <div class="stat-lbl">SKU ทั้งหมด</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon green">↓</div>
-          <div class="stat-val" id="s-in">0</div>
-          <div class="stat-lbl">รับเข้าวันนี้</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon red">↑</div>
-          <div class="stat-val" id="s-out">0</div>
-          <div class="stat-lbl">จ่ายออกวันนี้</div>
-        </div>
+        <div class="stat-card"><div class="stat-icon navy">⇄</div><div class="stat-val" id="s-today">0</div><div class="stat-lbl">รายการวันนี้</div></div>
+        <div class="stat-card"><div class="stat-icon gold">▣</div><div class="stat-val" id="s-sku">0</div><div class="stat-lbl">SKU ทั้งหมด</div></div>
+        <div class="stat-card"><div class="stat-icon green">↓</div><div class="stat-val" id="s-in">0</div><div class="stat-lbl">รับเข้าวันนี้</div></div>
+        <div class="stat-card"><div class="stat-icon red">↑</div><div class="stat-val" id="s-out">0</div><div class="stat-lbl">จ่ายออกวันนี้</div></div>
       </div>
-
       <div class="card">
         <div class="card-hd">ภาพรวมสต็อกสินค้า <span style="font-size:11px;color:var(--text3);font-weight:500">หน่วย: แพ็ค</span></div>
         <div class="chart-wrap"><canvas id="stock-chart"></canvas></div>
       </div>
-
       <div class="card">
         <div class="card-hd">สินค้าคงเหลือ <span class="link" id="stock-count">0 รายการ</span></div>
         <div id="stock-list"><div class="empty">กำลังโหลด...</div></div>
       </div>
-
       <div class="card">
-        <div class="card-hd">กิจกรรมล่าสุด <span class="link">ดูทั้งหมด</span></div>
+        <div class="card-hd">กิจกรรมล่าสุด</div>
         <div id="recent-list"><div class="empty">กำลังโหลด...</div></div>
       </div>
     </div>
-
     <div class="page" id="page-allwh">
       <div class="page-title">ภาพรวม</div>
-
       <div class="hero">
         <div class="hero-lbl">📊 สรุปรวมทุกคลัง · WS-<span id="aw-ws">------</span></div>
         <div class="hero-grid">
@@ -406,441 +367,80 @@ input { font-family: inherit; }
           <div class="hero-kpi"><div class="v" id="aw-out" style="color:#E88A7A">0</div><div class="l">จ่ายออกวันนี้</div></div>
         </div>
       </div>
-
       <div class="sec-title">💰 มูลค่ารวมทุกคลัง</div>
       <div class="val-grid">
-        <div class="val-card cost">
-          <div class="ic">📦</div>
-          <div class="lbl">ต้นทุนสต็อก</div>
-          <div class="num" id="aw-cost">฿0</div>
-        </div>
-        <div class="val-card sale">
-          <div class="ic">🏷</div>
-          <div class="lbl">มูลค่าขาย</div>
-          <div class="num" id="aw-sale">฿0</div>
-        </div>
-        <div class="val-card profit">
-          <div class="ic">✨</div>
-          <div class="lbl">กำไรในสต็อก</div>
-          <div class="num" id="aw-profit">฿0</div>
-        </div>
-        <div class="val-card sold">
-          <div class="ic">💸</div>
-          <div class="lbl">ยอดขายจริง</div>
-          <div class="num" id="aw-sold">฿0</div>
-        </div>
+        <div class="val-card cost"><div class="ic">📦</div><div class="lbl">ต้นทุนสต็อก</div><div class="num" id="aw-cost">฿0</div></div>
+        <div class="val-card sale"><div class="ic">🏷</div><div class="lbl">มูลค่าขาย</div><div class="num" id="aw-sale">฿0</div></div>
+        <div class="val-card profit"><div class="ic">✨</div><div class="lbl">กำไรในสต็อก</div><div class="num" id="aw-profit">฿0</div></div>
+        <div class="val-card sold"><div class="ic">💸</div><div class="lbl">ยอดขายจริง</div><div class="num" id="aw-sold">฿0</div></div>
       </div>
-
       <div class="note-bar">🔒 ยอดขายจริงแสดงเฉพาะผู้มีสิทธิ์ (นารินทร์, เบ้น)</div>
-
       <div class="sec-title">🏭 รายละเอียดแต่ละคลัง</div>
       <div id="aw-wh-list"><div class="empty">กำลังโหลด...</div></div>
     </div>
-
     <div class="page" id="page-products">
       <div class="page-title">สินค้า</div>
       <div class="card" id="prod-list"><div class="empty">กำลังโหลด...</div></div>
     </div>
   </div>
-
   <div class="bottom-nav">
     <div class="nav-inner">
-      <button class="nav-item active" data-page="dash" onclick="showPage('dash', this)">
-        <span class="ico">🏠</span>หน้าหลัก
-      </button>
-      <button class="nav-item" data-page="products" onclick="showPage('products', this)">
-        <span class="ico">📦</span>สินค้า
-      </button>
+      <button class="nav-item active" data-page="dash" onclick="showPage('dash', this)"><span class="ico">🏠</span>หน้าหลัก</button>
+      <button class="nav-item" data-page="products" onclick="showPage('products', this)"><span class="ico">📦</span>สินค้า</button>
       <button class="nav-scan" onclick="toast('ฟีเจอร์สแกน QR จะเพิ่มในอัปเดตถัดไป')">▣</button>
-      <button class="nav-item" data-page="allwh" onclick="showPage('allwh', this)">
-        <span class="ico">📊</span>ภาพรวม
-      </button>
-      <button class="nav-item" onclick="doLogout()">
-        <span class="ico">👤</span>โปรไฟล์
-      </button>
+      <button class="nav-item" data-page="allwh" onclick="showPage('allwh', this)"><span class="ico">📊</span>ภาพรวม</button>
+      <button class="nav-item" onclick="doLogout()"><span class="ico">👤</span>โปรไฟล์</button>
     </div>
   </div>
 </div>
-
 <div class="toast-wrap" id="toast-wrap"></div>
-
 <script>
-const DB = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app';
-const PC_LEN = 6;
-const WH_DEFAULTS = [
-  { id: 'WH_A', label: 'คลัง A', badge: 'a' },
-  { id: 'WH_B', label: 'คลัง B', badge: 'b' },
-  { id: 'WH_C', label: 'คลัง C', badge: 'c' }
-];
-const AW_VALUE_USERS = ['นารินทร์', 'เบ้น'];
-
-let pcBuffer = '';
-let currentWsKey = '';
-let room = 'WH_A';
-let user = '';
-let skus = {};
-let movements = {};
-let movArr = [];
-let warehouses = [...WH_DEFAULTS];
-let pollTimer = null;
-let chart = null;
-
-function hashCode(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  return ('0000000' + (h >>> 0).toString(16)).slice(-8).toUpperCase();
-}
-function canSeeValue() { return AW_VALUE_USERS.some(n => user.trim() === n); }
-function isValueUser(u) { return AW_VALUE_USERS.some(n => (u || '').trim() === n); }
-function fmtB(n) { return '฿' + Math.round(n || 0).toLocaleString('th-TH'); }
-function maskB(n) { return canSeeValue() ? fmtB(n) : '••••'; }
-function toast(msg, type) {
-  const w = document.getElementById('toast-wrap');
-  const t = document.createElement('div');
-  t.className = 'toast' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
-  t.textContent = msg;
-  w.innerHTML = '';
-  w.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
-}
-function todayStr() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-
-function pcKey(d) {
-  if (pcBuffer.length >= PC_LEN) return;
-  pcBuffer += d;
-  updateDots();
-  if (pcBuffer.length === PC_LEN) setTimeout(confirmPasscode, 150);
-}
-function pcDel() {
-  if (pcBuffer.length) { pcBuffer = pcBuffer.slice(0, -1); updateDots(); }
-}
-function updateDots() {
-  document.querySelectorAll('.pc-dot').forEach((el, i) => {
-    el.classList.toggle('filled', i < pcBuffer.length);
-  });
-}
-function confirmPasscode() {
-  currentWsKey = hashCode(pcBuffer);
-  pcBuffer = '';
-  updateDots();
-  document.getElementById('passcode-screen').style.display = 'none';
-  document.getElementById('ws-display').textContent = 'WS-' + currentWsKey;
-  const saved = localStorage.getItem('sf_user_' + currentWsKey);
-  if (saved) { user = saved; startApp(); }
-  else document.getElementById('login-screen').style.display = 'flex';
-}
-function backToPasscode() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('passcode-screen').style.display = 'flex';
-  pcBuffer = ''; updateDots(); currentWsKey = '';
-}
-function doLogin() {
-  const n = document.getElementById('login-name').value.trim();
-  if (!n) { toast('กรุณากรอกชื่อ', 'err'); return; }
-  user = n;
-  localStorage.setItem('sf_user_' + currentWsKey, n);
-  document.getElementById('login-screen').style.display = 'none';
-  startApp();
-}
-
-const api = async (p, opt = {}) => {
-  const r = await fetch(DB + '/' + p + '.json', { cache: 'no-store', ...opt });
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
-};
-const rp = () => 'ws_' + currentWsKey + '/rooms/' + room;
-
-function computeStock(mvs) {
-  const map = {};
-  Object.values(mvs || {}).forEach(m => {
-    if (!map[m.skuId]) map[m.skuId] = 0;
-    if (m.type === 'in') map[m.skuId] += m.pieces;
-    else if (m.type === 'adj') map[m.skuId] += (m.adjDir === 'minus' ? -m.pieces : m.pieces);
-    else if (m.type === 'out' || m.type === 'transfer') map[m.skuId] -= m.pieces;
-  });
-  return map;
-}
-function effCost(s) { return (s.costPrice || 0) + (s.shippingCost || 0); }
-
-async function poll() {
-  try {
-    const [s, m] = await Promise.all([api(rp() + '/skus'), api(rp() + '/movements')]);
-    skus = s || {};
-    movements = m || {};
-    movArr = Object.entries(movements).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
-    updateDash();
-  } catch (e) {
-    console.warn(e);
-  }
-}
-
-function updateDash() {
-  const today = todayStr();
-  let cnt = 0, tin = 0, tout = 0;
-  Object.values(movements).forEach(m => {
-    if ((m.date || '').slice(0, 10) === today) {
-      cnt++;
-      if (m.type === 'in' && !m.isTransferIn) tin += m.pieces;
-      else if (m.type === 'out' || m.type === 'transfer') tout += m.pieces;
-    }
-  });
-  document.getElementById('s-today').textContent = cnt.toLocaleString();
-  document.getElementById('s-sku').textContent = Object.keys(skus).length.toLocaleString();
-  document.getElementById('s-in').textContent = tin.toLocaleString();
-  document.getElementById('s-out').textContent = tout.toLocaleString();
-
-  const sm = computeStock(movements);
-  const ents = Object.entries(sm).filter(([, v]) => v !== 0).sort((a, b) => b[1] - a[1]);
-  document.getElementById('stock-count').textContent = ents.length + ' รายการ';
-
-  const list = document.getElementById('stock-list');
-  if (!ents.length) list.innerHTML = '<div class="empty">ยังไม่มีสต็อก</div>';
-  else list.innerHTML = ents.slice(0, 8).map(([id, qty]) => {
-    const s = skus[id] || {};
-    return `<div class="list-row">
-      <div class="list-icon">📦</div>
-      <div class="list-body">
-        <div class="list-name">${s.name || id}</div>
-        <div class="list-meta">${s.baseUnit || 'แพ็ค'}</div>
-      </div>
-      <div class="list-qty">${qty.toLocaleString()} ${s.baseUnit || 'แพ็ค'}</div>
-    </div>`;
-  }).join('');
-
-  const recent = document.getElementById('recent-list');
-  const items = movArr.slice(0, 5);
-  if (!items.length) recent.innerHTML = '<div class="empty">ยังไม่มีรายการ</div>';
-  else recent.innerHTML = items.map(([, m]) => {
-    const s = skus[m.skuId] || {};
-    const isIn = m.type === 'in';
-    const isOut = m.type === 'out' || m.type === 'transfer';
-    const dot = isIn ? 'g' : isOut ? 'r' : 'o';
-    const pfx = isIn ? '+' : isOut ? '−' : '';
-    const cls = isIn ? 'pos' : isOut ? 'neg' : '';
-    const label = isIn ? 'รับเข้า' : isOut ? 'จ่ายออก' : 'ปรับสต็อก';
-    const time = (m.date || '').slice(11, 16) || '';
-    return `<div class="list-row">
-      <div class="dot ${dot}"></div>
-      <div class="list-body">
-        <div class="list-name">${label}: ${s.name || m.skuId}</div>
-        <div class="list-meta">${time} · ${m.user || '-'}</div>
-      </div>
-      <div class="list-qty ${cls}">${pfx}${m.pieces}</div>
-    </div>`;
-  }).join('');
-
-  updateChart(ents.slice(0, 6));
-  updateProducts(ents);
-}
-
-function updateChart(ents) {
-  const labels = ents.map(([id]) => {
-    const n = (skus[id] || {}).name || id;
-    return n.length > 10 ? n.slice(0, 9) + '…' : n;
-  });
-  const data = ents.map(([, v]) => Math.max(0, v));
-  const ctx = document.getElementById('stock-chart');
-  if (!ctx) return;
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: '#1A2332',
-        borderRadius: 6,
-        borderSkipped: false,
-        maxBarThickness: 36
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(26,35,50,.9)',
-          titleFont: { family: 'Sarabun' },
-          bodyFont: { family: 'IBM Plex Mono' }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 10, family: 'Sarabun' }, color: '#9AA3AD', maxRotation: 0 }
-        },
-        y: {
-          grid: { color: '#F0EEE9' },
-          ticks: { font: { size: 10, family: 'IBM Plex Mono' }, color: '#9AA3AD' },
-          beginAtZero: true
-        }
-      }
-    }
-  });
-}
-
-function updateProducts(ents) {
-  const el = document.getElementById('prod-list');
-  if (!ents.length) { el.innerHTML = '<div class="empty">ยังไม่มีสินค้า</div>'; return; }
-  el.innerHTML = ents.map(([id, qty]) => {
-    const s = skus[id] || {};
-    return `<div class="list-row">
-      <div class="list-icon">📦</div>
-      <div class="list-body">
-        <div class="list-name">${s.name || id}</div>
-        <div class="list-meta">SKU: ${id.slice(0, 12)}</div>
-      </div>
-      <div class="list-qty">${qty} ${s.baseUnit || 'แพ็ค'}</div>
-    </div>`;
-  }).join('');
-}
-
-async function loadOverview() {
-  document.getElementById('aw-ws').textContent = currentWsKey;
-  const today = todayStr();
-  let totalIn = 0, totalOut = 0, totalCost = 0, totalSale = 0, totalSold = 0;
-  const nameSet = new Set();
-  let html = '';
-
-  for (let i = 0; i < warehouses.length; i++) {
-    const wh = warehouses[i];
-    try {
-      const [s, m] = await Promise.all([
-        api('ws_' + currentWsKey + '/rooms/' + wh.id + '/skus'),
-        api('ws_' + currentWsKey + '/rooms/' + wh.id + '/movements')
-      ]);
-      const skusW = s || {}, movW = m || {};
-      const sm = computeStock(movW);
-      Object.keys(skusW).forEach(id => nameSet.add((skusW[id].name || id).trim()));
-      let whIn = 0, whOut = 0;
-      Object.values(movW).forEach(mv => {
-        if ((mv.date || '').slice(0, 10) === today) {
-          if (mv.type === 'in' && !mv.isTransferIn) { whIn += mv.pieces; totalIn += mv.pieces; }
-          else if (mv.type === 'out') { whOut += mv.pieces; totalOut += mv.pieces; }
-        }
-        if (mv.type === 'out' && isValueUser(mv.user)) {
-          const sk = skusW[mv.skuId] || {};
-          totalSold += mv.pieces * (sk.salePrice || 0);
-        }
-      });
-      Object.entries(sm).forEach(([id, qty]) => {
-        if (qty > 0) {
-          const sk = skusW[id] || {};
-          totalCost += qty * effCost(sk);
-          totalSale += qty * (sk.salePrice || 0);
-        }
-      });
-      const totalStock = Object.values(sm).reduce((a, b) => a + (b > 0 ? b : 0), 0);
-      html += `<div class="wh-card">
-        <div class="wh-badge ${wh.badge}">${wh.label.replace('คลัง ', '')}</div>
-        <div class="wh-info">
-          <div class="wh-name">${wh.label}</div>
-          <div class="wh-meta">SKU ${Object.keys(skusW).length} · สต็อก ${totalStock} · +${whIn}/−${whOut} วันนี้</div>
-        </div>
-        <button class="wh-btn" onclick="switchWarehouse('${wh.id}')">เปิด</button>
-      </div>`;
-    } catch (e) {
-      html += `<div class="wh-card"><div class="wh-badge ${wh.badge}">?</div><div class="wh-info"><div class="wh-name">${wh.label}</div><div class="wh-meta">ไม่มีข้อมูล</div></div></div>`;
-    }
-  }
-
-  document.getElementById('aw-sku').textContent = nameSet.size.toLocaleString();
-  document.getElementById('aw-in').textContent = totalIn.toLocaleString();
-  document.getElementById('aw-out').textContent = totalOut.toLocaleString();
-  document.getElementById('aw-cost').textContent = maskB(totalCost);
-  document.getElementById('aw-sale').textContent = maskB(totalSale);
-  document.getElementById('aw-profit').textContent = maskB(totalSale - totalCost);
-  document.getElementById('aw-sold').textContent = maskB(totalSold);
-  document.getElementById('aw-wh-list').innerHTML = html || '<div class="empty">ไม่มีข้อมูล</div>';
-}
-
-function showPage(name, el) {
-  if (name === 'allwh') {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-allwh').classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-    if (el) el.classList.add('active');
-    loadOverview();
-    return;
-  }
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const page = document.getElementById('page-' + name);
-  if (page) page.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-  if (el) el.classList.add('active');
-  if (name === 'dash') poll();
-}
-
-function switchWarehouse(whId) {
-  room = whId;
-  localStorage.setItem('sf_room_' + currentWsKey, whId);
-  const wh = warehouses.find(w => w.id === whId);
-  document.getElementById('wh-label').textContent = wh ? wh.label : whId;
-  skus = {}; movements = {}; movArr = [];
-  showPage('dash', document.querySelector('[data-page="dash"]'));
-  toast('เปลี่ยนเป็น ' + (wh ? wh.label : whId), 'ok');
-  poll();
-}
-function cycleWarehouse() {
-  const idx = warehouses.findIndex(w => w.id === room);
-  const next = warehouses[(idx + 1) % warehouses.length];
-  switchWarehouse(next.id);
-}
-
-async function startApp() {
-  sessionStorage.setItem('sf_session_ws', currentWsKey);
-  sessionStorage.setItem('sf_session_user', user);
-  document.getElementById('app').style.display = 'flex';
-  try {
-    const data = await api('ws_' + currentWsKey + '/warehouse_labels');
-    if (data) {
-      warehouses = WH_DEFAULTS.map(w => ({ ...w, label: data[w.id] || w.label }));
-    }
-  } catch (e) {}
-  const last = localStorage.getItem('sf_room_' + currentWsKey) || warehouses[0].id;
-  room = last;
-  const wh = warehouses.find(w => w.id === room);
-  document.getElementById('wh-label').textContent = wh ? wh.label : room;
-  poll();
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(poll, 4000);
-}
-
-function doLogout() {
-  if (!confirm('ออกจากระบบ "' + user + '" ?')) return;
-  clearInterval(pollTimer);
-  currentWsKey = ''; user = '';
-  sessionStorage.clear();
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('passcode-screen').style.display = 'flex';
-  pcBuffer = ''; updateDots();
-}
-
-document.addEventListener('keydown', e => {
-  if (document.getElementById('passcode-screen').style.display !== 'none') {
-    if (e.key >= '0' && e.key <= '9') pcKey(e.key);
-    else if (e.key === 'Backspace') pcDel();
-  }
-});
-document.getElementById('login-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLogin();
-});
-
-window.addEventListener('load', () => {
-  const sw = sessionStorage.getItem('sf_session_ws');
-  const su = sessionStorage.getItem('sf_session_user');
-  if (sw && su) {
-    currentWsKey = sw; user = su;
-    document.getElementById('passcode-screen').style.display = 'none';
-    startApp();
-  } else {
-    document.getElementById('passcode-screen').style.display = 'flex';
-  }
-});
+const DB='https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app';
+const PC_LEN=6;
+const WH_DEFAULTS=[{id:'WH_A',label:'คลัง A',badge:'a'},{id:'WH_B',label:'คลัง B',badge:'b'},{id:'WH_C',label:'คลัง C',badge:'c'}];
+const AW_VALUE_USERS=['นารินทร์','เบ้น'];
+let pcBuffer='',currentWsKey='',room='WH_A',user='',skus={},movements={},movArr=[],warehouses=[...WH_DEFAULTS],pollTimer=null,chart=null,lastChartKey='';
+function hashCode(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return('0000000'+(h>>>0).toString(16)).slice(-8).toUpperCase();}
+function canSeeValue(){return AW_VALUE_USERS.some(n=>user.trim()===n);}
+function isValueUser(u){return AW_VALUE_USERS.some(n=>(u||'').trim()===n);}
+function fmtB(n){return'฿'+Math.round(n||0).toLocaleString('th-TH');}
+function maskB(n){return canSeeValue()?fmtB(n):'••••';}
+function toast(msg,type){const w=document.getElementById('toast-wrap');const t=document.createElement('div');t.className='toast'+(type==='ok'?' ok':type==='err'?' err':'');t.textContent=msg;w.innerHTML='';w.appendChild(t);setTimeout(()=>t.remove(),2500);}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function pcKey(d){if(pcBuffer.length>=PC_LEN)return;pcBuffer+=d;updateDots();if(pcBuffer.length===PC_LEN)setTimeout(confirmPasscode,150);}
+function pcDel(){if(pcBuffer.length){pcBuffer=pcBuffer.slice(0,-1);updateDots();}}
+function updateDots(){document.querySelectorAll('.pc-dot').forEach((el,i)=>el.classList.toggle('filled',i<pcBuffer.length));}
+function confirmPasscode(){currentWsKey=hashCode(pcBuffer);pcBuffer='';updateDots();document.getElementById('passcode-screen').style.display='none';document.getElementById('ws-display').textContent='WS-'+currentWsKey;const saved=localStorage.getItem('sf_user_'+currentWsKey);if(saved){user=saved;startApp();}else document.getElementById('login-screen').style.display='flex';}
+function backToPasscode(){document.getElementById('login-screen').style.display='none';document.getElementById('passcode-screen').style.display='flex';pcBuffer='';updateDots();currentWsKey='';}
+function doLogin(){const n=document.getElementById('login-name').value.trim();if(!n){toast('กรุณากรอกชื่อ','err');return;}user=n;localStorage.setItem('sf_user_'+currentWsKey,n);document.getElementById('login-screen').style.display='none';startApp();}
+const api=async(p,opt={})=>{const r=await fetch(DB+'/'+p+'.json',{cache:'no-store',...opt});if(!r.ok)throw new Error(r.status);return r.json();};
+const rp=()=>'ws_'+currentWsKey+'/rooms/'+room;
+function computeStock(mvs){const map={};Object.values(mvs||{}).forEach(m=>{if(!map[m.skuId])map[m.skuId]=0;if(m.type==='in')map[m.skuId]+=m.pieces;else if(m.type==='adj')map[m.skuId]+=(m.adjDir==='minus'?-m.pieces:m.pieces);else if(m.type==='out'||m.type==='transfer')map[m.skuId]-=m.pieces;});return map;}
+function effCost(s){return(s.costPrice||0)+(s.shippingCost||0);}
+function bU(s){return(s&&s.baseUnit)||'แพ็ค';}
+function cU(s){return(s&&s.caseUnit)||'ลัง';}
+function fmtStock(qty,s){const bu=bU(s),cu=cU(s);const ppc=(s&&s.piecesPerCase)||1;if(ppc>1){const cases=Math.floor(qty/ppc);const rem=qty%ppc;let t='';if(cases>0)t+=cases+' '+cu;if(rem>0)t+=(cases>0?' + ':'')+rem+' '+bu;return{main:t||('0 '+bu),sub:qty+' '+bu+' รวม'};}return{main:qty+' '+bu,sub:''};}
+async function poll(){try{const[s,m]=await Promise.all([api(rp()+'/skus'),api(rp()+'/movements')]);skus=s||{};movements=m||{};movArr=Object.entries(movements).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));updateDash();}catch(e){console.warn(e);}}
+function updateDash(){const today=todayStr();let cnt=0,tin=0,tout=0;Object.values(movements).forEach(m=>{if((m.date||'').slice(0,10)===today){cnt++;if(m.type==='in'&&!m.isTransferIn)tin+=m.pieces;else if(m.type==='out'||m.type==='transfer')tout+=m.pieces;}});document.getElementById('s-today').textContent=cnt.toLocaleString();document.getElementById('s-sku').textContent=Object.keys(skus).length.toLocaleString();document.getElementById('s-in').textContent=tin.toLocaleString();document.getElementById('s-out').textContent=tout.toLocaleString();
+const sm=computeStock(movements);const ents=Object.entries(sm).filter(([,v])=>v!==0).sort((a,b)=>b[1]-a[1]);document.getElementById('stock-count').textContent=ents.length+' รายการ';
+const list=document.getElementById('stock-list');
+if(!ents.length)list.innerHTML='<div class="empty">ยังไม่มีสต็อก</div>';
+else list.innerHTML=ents.slice(0,10).map(([id,qty])=>{const s=skus[id]||{};const f=fmtStock(qty,s);return`<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">${s.name||id}</div><div class="list-meta">${f.sub||bU(s)}</div></div><div class="list-qty" style="text-align:right;line-height:1.25">${f.main}</div></div>`;}).join('');
+const recent=document.getElementById('recent-list');const items=movArr.slice(0,5);
+if(!items.length)recent.innerHTML='<div class="empty">ยังไม่มีรายการ</div>';
+else recent.innerHTML=items.map(([,m])=>{const s=skus[m.skuId]||{};const isIn=m.type==='in';const isOut=m.type==='out'||m.type==='transfer';const dot=isIn?'g':isOut?'r':'o';const pfx=isIn?'+':isOut?'−':'';const cls=isIn?'pos':isOut?'neg':'';const label=isIn?'รับเข้า':isOut?'จ่ายออก':'ปรับสต็อก';const time=(m.date||'').slice(11,16)||'';return`<div class="list-row"><div class="dot ${dot}"></div><div class="list-body"><div class="list-name">${label}: ${s.name||m.skuId}</div><div class="list-meta">${time} · ${m.user||'-'}</div></div><div class="list-qty ${cls}">${pfx}${m.pieces}</div></div>`;}).join('');
+updateChart(ents.slice(0,6));updateProducts(ents);}
+function updateChart(ents){const labels=ents.map(([id])=>{const n=(skus[id]||{}).name||id;return n.length>10?n.slice(0,9)+'…':n;});const data=ents.map(([,v])=>Math.max(0,v));const key=labels.join('|')+'::'+data.join(',');const ctx=document.getElementById('stock-chart');if(!ctx)return;if(key===lastChartKey&&chart)return;lastChartKey=key;if(chart){try{chart.destroy();}catch(e){}chart=null;}if(!ents.length)return;const parent=ctx.parentElement;const w=parent?parent.clientWidth:300;ctx.style.width=w+'px';ctx.style.height='200px';chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:'#0F1620',borderRadius:6,borderSkipped:false,maxBarThickness:40}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(15,22,32,.92)',titleFont:{family:'Sarabun'},bodyFont:{family:'IBM Plex Mono'}}},scales:{x:{grid:{display:false},ticks:{font:{size:10,family:'Sarabun'},color:'#3D4654',maxRotation:0}},y:{grid:{color:'#E8E4DC'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3D4654'},beginAtZero:true}}});}
+function updateProducts(ents){const el=document.getElementById('prod-list');if(!ents.length){el.innerHTML='<div class="empty">ยังไม่มีสินค้า</div>';return;}el.innerHTML=ents.map(([id,qty])=>{const s=skus[id]||{};const f=fmtStock(qty,s);const ppc=s.piecesPerCase||1;const meta=(s.unitSku||id.slice(0,12))+(ppc>1?' · '+ppc+' '+bU(s)+'/'+cU(s):'');return`<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">${s.name||id}</div><div class="list-meta">${meta}</div></div><div class="list-qty" style="text-align:right;line-height:1.25">${f.main}</div></div>`;}).join('');}
+async function loadOverview(){document.getElementById('aw-ws').textContent=currentWsKey;const today=todayStr();let totalIn=0,totalOut=0,totalCost=0,totalSale=0,totalSold=0;const nameSet=new Set();let html='';for(let i=0;i<warehouses.length;i++){const wh=warehouses[i];try{const[s,m]=await Promise.all([api('ws_'+currentWsKey+'/rooms/'+wh.id+'/skus'),api('ws_'+currentWsKey+'/rooms/'+wh.id+'/movements')]);const skusW=s||{},movW=m||{};const sm=computeStock(movW);Object.keys(skusW).forEach(id=>nameSet.add((skusW[id].name||id).trim()));let whIn=0,whOut=0;Object.values(movW).forEach(mv=>{if((mv.date||'').slice(0,10)===today){if(mv.type==='in'&&!mv.isTransferIn){whIn+=mv.pieces;totalIn+=mv.pieces;}else if(mv.type==='out'){whOut+=mv.pieces;totalOut+=mv.pieces;}}if(mv.type==='out'&&isValueUser(mv.user)){const sk=skusW[mv.skuId]||{};totalSold+=mv.pieces*(sk.salePrice||0);}});Object.entries(sm).forEach(([id,qty])=>{if(qty>0){const sk=skusW[id]||{};totalCost+=qty*effCost(sk);totalSale+=qty*(sk.salePrice||0);}});const totalStock=Object.values(sm).reduce((a,b)=>a+(b>0?b:0),0);html+=`<div class="wh-card"><div class="wh-badge ${wh.badge}">${wh.label.replace('คลัง ','')}</div><div class="wh-info"><div class="wh-name">${wh.label}</div><div class="wh-meta">SKU ${Object.keys(skusW).length} · สต็อก ${totalStock} · +${whIn}/−${whOut} วันนี้</div></div><button class="wh-btn" onclick="switchWarehouse('${wh.id}')">เปิด</button></div>`;}catch(e){html+=`<div class="wh-card"><div class="wh-badge ${wh.badge}">?</div><div class="wh-info"><div class="wh-name">${wh.label}</div><div class="wh-meta">ไม่มีข้อมูล</div></div></div>`;}}document.getElementById('aw-sku').textContent=nameSet.size.toLocaleString();document.getElementById('aw-in').textContent=totalIn.toLocaleString();document.getElementById('aw-out').textContent=totalOut.toLocaleString();document.getElementById('aw-cost').textContent=maskB(totalCost);document.getElementById('aw-sale').textContent=maskB(totalSale);document.getElementById('aw-profit').textContent=maskB(totalSale-totalCost);document.getElementById('aw-sold').textContent=maskB(totalSold);document.getElementById('aw-wh-list').innerHTML=html||'<div class="empty">ไม่มีข้อมูล</div>';}
+function showPage(name,el){if(name==='allwh'){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-allwh').classList.add('active');document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');loadOverview();return;}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));const page=document.getElementById('page-'+name);if(page)page.classList.add('active');document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');if(name==='dash')poll();}
+function switchWarehouse(whId){room=whId;localStorage.setItem('sf_room_'+currentWsKey,whId);const wh=warehouses.find(w=>w.id===whId);document.getElementById('wh-label').textContent=wh?wh.label:whId;skus={};movements={};movArr=[];lastChartKey='';if(chart){try{chart.destroy();}catch(e){}chart=null;}showPage('dash',document.querySelector('[data-page="dash"]'));toast('เปลี่ยนเป็น '+(wh?wh.label:whId),'ok');poll();}
+function cycleWarehouse(){const idx=warehouses.findIndex(w=>w.id===room);const next=warehouses[(idx+1)%warehouses.length];switchWarehouse(next.id);}
+async function startApp(){sessionStorage.setItem('sf_session_ws',currentWsKey);sessionStorage.setItem('sf_session_user',user);document.getElementById('app').style.display='flex';try{const data=await api('ws_'+currentWsKey+'/warehouse_labels');if(data)warehouses=WH_DEFAULTS.map(w=>({...w,label:data[w.id]||w.label}));}catch(e){}const last=localStorage.getItem('sf_room_'+currentWsKey)||warehouses[0].id;room=last;const wh=warehouses.find(w=>w.id===room);document.getElementById('wh-label').textContent=wh?wh.label:room;poll();if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(poll,5000);}
+function doLogout(){if(!confirm('ออกจากระบบ "'+user+'" ?'))return;clearInterval(pollTimer);currentWsKey='';user='';sessionStorage.clear();document.getElementById('app').style.display='none';document.getElementById('passcode-screen').style.display='flex';pcBuffer='';updateDots();}
+document.addEventListener('keydown',e=>{if(document.getElementById('passcode-screen').style.display!=='none'){if(e.key>='0'&&e.key<='9')pcKey(e.key);else if(e.key==='Backspace')pcDel();}});
+document.getElementById('login-name').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+window.addEventListener('load',()=>{const sw=sessionStorage.getItem('sf_session_ws');const su=sessionStorage.getItem('sf_session_user');if(sw&&su){currentWsKey=sw;user=su;document.getElementById('passcode-screen').style.display='none';startApp();}else{document.getElementById('passcode-screen').style.display='flex';}});
 </script>
 </body>
 </html>
