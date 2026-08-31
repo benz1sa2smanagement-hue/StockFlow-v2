@@ -148,9 +148,10 @@
       var cases = Math.floor(qty / ppc), rem = qty % ppc, t = '';
       if (cases > 0) t += cases + ' ' + cu;
       if (rem > 0) t += (cases > 0 ? ' + ' : '') + rem + ' ' + bu;
-      return { main: t || ('0 ' + bu), sub: qty + ' ' + bu + ' รวม' };
+      if (!t) t = '0 ' + bu;
+      return { main: t, sub: 'รวม ' + qty.toLocaleString() + ' ' + bu };
     }
-    return { main: qty + ' ' + bu, sub: '' };
+    return { main: qty.toLocaleString() + ' ' + bu, sub: '' };
   }
 
   function poll() {
@@ -184,7 +185,7 @@
     if (!ents.length) list.innerHTML = '<div class="empty">ยังไม่มีสต็อก</div>';
     else list.innerHTML = ents.slice(0, 10).map(function (pair) {
       var s = skus[pair[0]] || {}, f = fmtStock(pair[1], s);
-      return '<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">' + (s.name || pair[0]) + '</div><div class="list-meta">' + (f.sub || bU(s)) + '</div></div><div class="list-qty">' + f.main + '</div></div>';
+      return '<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">' + (s.name || pair[0]) + '</div><div class="list-meta">' + bU(s) + (s.piecesPerCase > 1 ? ' · ' + s.piecesPerCase + ' ' + bU(s) + '/' + cU(s) : '') + '</div></div><div class="list-qty"><div>' + f.main + '</div>' + (f.sub ? '<div class="list-qty-sub">' + f.sub + '</div>' : '') + '</div></div>';
     }).join('');
     var recent = document.getElementById('recent-list');
     var items = movArr.slice(0, 5);
@@ -204,12 +205,15 @@
   }
 
   function updateChart(ents) {
-    var labels = ents.map(function (p) {
-      var n = (skus[p[0]] || {}).name || p[0];
-      return n.length > 10 ? n.slice(0, 9) + '…' : n;
+    var rawLabels = ents.map(function (p) {
+      return (skus[p[0]] || {}).name || p[0];
+    });
+    var labels = rawLabels.map(function (n) {
+      if (n.length <= 18) return n;
+      return n.slice(0, 8) + '…' + n.slice(-7);
     });
     var data = ents.map(function (p) { return Math.max(0, p[1]); });
-    var key = labels.join('|') + '::' + data.join(',');
+    var key = rawLabels.join('|') + '::' + data.join(',');
     var ctx = document.getElementById('stock-chart');
     if (!ctx) return;
     if (key === lastChartKey && chart) return;
@@ -218,13 +222,51 @@
     if (!ents.length) return;
     chart = new Chart(ctx, {
       type: 'bar',
-      data: { labels: labels, datasets: [{ data: data, backgroundColor: '#0F1620', borderRadius: 6, borderSkipped: false, maxBarThickness: 40 }] },
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: '#0F1620',
+          borderRadius: 6,
+          borderSkipped: false,
+          maxBarThickness: 22
+        }]
+      },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
-        plugins: { legend: { display: false } },
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        layout: { padding: { left: 4, right: 8 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function (items) {
+                var i = items[0].dataIndex;
+                return rawLabels[i] || items[0].label;
+              },
+              label: function (item) {
+                return ' ' + item.raw.toLocaleString() + ' แพ็ค';
+              }
+            }
+          }
+        },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Sarabun' }, color: '#3D4654', maxRotation: 0 } },
-          y: { grid: { color: '#E8E4DC' }, ticks: { font: { size: 10, family: 'IBM Plex Mono' }, color: '#3D4654' }, beginAtZero: true }
+          x: {
+            beginAtZero: true,
+            grid: { color: '#E8E4DC' },
+            ticks: { font: { size: 10, family: 'IBM Plex Mono' }, color: '#3D4654' }
+          },
+          y: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 11, family: 'Sarabun' },
+              color: '#121820',
+              autoSkip: false,
+              crossAlign: 'far'
+            }
+          }
         }
       }
     });
@@ -237,7 +279,7 @@
       var s = skus[pair[0]] || {}, f = fmtStock(pair[1], s);
       var ppc = s.piecesPerCase || 1;
       var meta = (s.unitSku || pair[0].slice(0, 12)) + (ppc > 1 ? ' · ' + ppc + ' ' + bU(s) + '/' + cU(s) : '');
-      return '<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">' + (s.name || pair[0]) + '</div><div class="list-meta">' + meta + '</div></div><div class="list-qty">' + f.main + '</div></div>';
+      return '<div class="list-row"><div class="list-icon">📦</div><div class="list-body"><div class="list-name">' + (s.name || pair[0]) + '</div><div class="list-meta">' + meta + '</div></div><div class="list-qty"><div>' + f.main + '</div>' + (f.sub ? '<div class="list-qty-sub">' + f.sub + '</div>' : '') + '</div></div>';
     }).join('');
   }
 
@@ -389,7 +431,7 @@
     if (!ents.length) listEl.innerHTML = '<div class="empty">ยังไม่มีการจ่ายออก' + (isToday ? 'วันนี้' : 'ในวันที่เลือก') + '</div>';
     else listEl.innerHTML = ents.map(function (pair) {
       var s = skus[pair[0]] || {}, f = fmtStock(pair[1], s);
-      return '<div class="od-row"><div class="od-row-name">' + (s.name || pair[0]) + '</div><div><div class="od-row-qty">' + f.main + '</div><div class="od-row-sub">รวม ' + pair[1] + ' ' + bU(s) + '</div></div></div>';
+      return '<div class="od-row"><div class="od-row-name">' + (s.name || pair[0]) + '</div><div><div class="od-row-qty">' + f.main + '</div><div class="od-row-sub">' + (f.sub || ('รวม ' + pair[1] + ' ' + bU(s))) + '</div></div></div>';
     }).join('');
     [chOutPie, chOutBar, chOutPlat].forEach(function (c) { if (c) { try { c.destroy(); } catch (e) {} } });
     chOutPie = chOutBar = chOutPlat = null;
