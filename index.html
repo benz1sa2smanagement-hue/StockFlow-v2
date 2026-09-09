@@ -3,33 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0B0F1A">
+<meta name="theme-color" content="#F0F4FA">
 <title>StockFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#0B0F1A;
-  --paper:rgba(255,255,255,0.06);
-  --line:rgba(255,255,255,0.12);
-  --line2:rgba(255,255,255,0.08);
-  --ink:#F0F4FF;
-  --ink2:#A8B3D1;
-  --ink3:#6B7A99;
-  --gold:#7B6CFF;
-  --gold-soft:rgba(123,108,255,0.15);
-  --gold-line:rgba(123,108,255,0.35);
-  --ok:#3DDC97;
-  --ok-soft:rgba(61,220,151,0.15);
-  --bad:#FF6B6B;
-  --bad-soft:rgba(255,107,107,0.15);
-  --shadow:0 4px 24px rgba(0,0,0,0.3);
-  --shadow-lg:0 12px 40px rgba(0,0,0,0.45);
+  --bg:#F0F4FA;
+  --paper:rgba(255,255,255,0.72);
+  --line:rgba(255,255,255,0.9);
+  --line2:rgba(200,210,230,0.5);
+  --ink:#1A2332;
+  --ink2:#4A5568;
+  --ink3:#8A94A6;
+  --gold:#5B6CFF;
+  --gold-soft:rgba(91,108,255,0.12);
+  --gold-line:rgba(91,108,255,0.3);
+  --ok:#22C55E;
+  --ok-soft:rgba(34,197,94,0.12);
+  --bad:#EF4444;
+  --bad-soft:rgba(239,68,68,0.12);
+  --shadow:0 4px 24px rgba(100,120,160,0.12);
+  --shadow-lg:0 12px 40px rgba(100,120,160,0.18);
   --r:20px;--r-sm:12px;
   --nav:76px;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;height:100dvh;max-height:100dvh;font-family:Sarabun,system-ui,sans-serif;background:linear-gradient(160deg,#0B0F1A 0%,#1A1040 50%,#0D1B2A 100%);color:var(--ink);overflow:hidden;font-weight:400;position:relative}
+html,body{height:100%;height:100dvh;max-height:100dvh;font-family:Sarabun,system-ui,sans-serif;background:linear-gradient(160deg,#F0F4FA 0%,#E8EEF8 50%,#F5F7FC 100%);color:var(--ink);overflow:hidden;font-weight:400;position:relative}
 button{font-family:inherit;cursor:pointer;border:none;background:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
 input,select,textarea{font-family:inherit;font-size:16px}
 #pc{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;padding-top:calc(28px + var(--st))}
@@ -59,7 +59,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .btn-ink:active{opacity:.85}
 .btn-ghost{background:transparent;color:var(--ink3);font-weight:500;font-size:14px;text-decoration:underline;padding:8px}
 #app{height:100%;height:100dvh;max-height:100dvh;display:none;flex-direction:column;background:var(--bg);overflow:hidden;min-height:0}
-.top{background:rgba(11,15,26,0.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:14px 18px;padding-top:calc(14px + var(--st));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;position:relative;z-index:10}
+.top{background:rgba(255,255,255,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:14px 18px;padding-top:calc(14px + var(--st));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(200,210,230,0.4);flex-shrink:0;position:relative;z-index:10}
 .brand{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;letter-spacing:-.02em}
 .brand-mark{width:26px;height:26px;border-radius:8px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:11px}
 .wh{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:100px;padding:7px 12px;font-size:12px;font-weight:500;color:var(--ink2)}
@@ -69,12 +69,12 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .page .pt,.page .kpi-row,.page .card,.page .hero,.page .sec,.page .val-g,.page .note,.page .wh-c{margin-bottom:14px}
 .page .card:last-child,.page .wh-c:last-child{margin-bottom:8px}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.kpi{background:rgba(255,255,255,0.07);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:14px 8px;text-align:center;box-shadow:var(--shadow)}
-.kpi.tap{border-color:rgba(255,107,107,0.4);background:var(--bad-soft)}
+.kpi{background:rgba(255,255,255,0.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.9);border-radius:16px;padding:14px 8px;text-align:center;box-shadow:var(--shadow)}
+.kpi.tap{border-color:rgba(239,68,68,0.35);background:var(--bad-soft)}
 .kpi-v{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;color:var(--ink);letter-spacing:-.02em}
 .kpi.tap .kpi-v{color:var(--bad)}
 .kpi-l{font-size:10px;color:var(--ink3);font-weight:500;margin-top:4px;letter-spacing:.02em}
-.card{background:rgba(255,255,255,0.06);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.card{background:rgba(255,255,255,0.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.9);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 .card-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px;font-size:13px;font-weight:600;color:var(--ink2);letter-spacing:.01em}
 .chart-box{padding:4px 12px 16px;height:280px;position:relative}
 .row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
@@ -108,11 +108,11 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .wh-i{flex:1;min-width:0}.wh-n{font-size:14px;font-weight:500}.wh-m{font-size:11px;color:var(--ink3);margin-top:2px}
 .wh-btn{background:var(--ink);color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600}
 .bnav{position:absolute;bottom:0;left:0;right:0;padding:0 14px;padding-bottom:calc(10px + var(--sb));pointer-events:none;z-index:100}
-.bnav-i{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:rgba(255,255,255,0.08);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:28px;padding:8px 6px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,0.12);max-width:420px;margin:0 auto}
+.bnav-i{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:rgba(255,255,255,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:28px;padding:8px 6px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,0.95);max-width:420px;margin:0 auto}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--ink3);font-size:10px;font-weight:500}
 .ni.on{color:var(--ink)}
 .ni .ic{font-size:18px;line-height:1}
-.ns{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7B6CFF,#5B4BFF);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 0 24px rgba(123,108,255,0.5);border:3px solid #0B0F1A;color:#fff;font-size:20px}
+.ns{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#5B6CFF,#4A5AE8);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 6px 20px rgba(91,108,255,0.4);border:3px solid #F0F4FA;color:#fff;font-size:20px}
 .ov{position:fixed;inset:0;background:rgba(12,14,18,.4);z-index:300;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
 .ov.open{display:flex}
 .sheet{background:var(--paper);border-radius:24px 24px 0 0;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;padding-bottom:calc(20px + var(--sb));box-shadow:var(--shadow-lg);-webkit-overflow-scrolling:touch}
@@ -132,7 +132,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .od-today{padding:0 12px;height:34px;border-radius:10px;background:var(--gold-soft);border:1px solid var(--gold-line);font-size:12px;font-weight:600;display:none}
 .od-kpi{display:flex;gap:10px;padding:10px 20px}
 .od-k{flex:1;border-radius:14px;padding:14px;text-align:center;border:1px solid var(--line);background:var(--bg)}
-.od-k.bad{background:var(--bad-soft);border-color:#E8C5BE}
+.od-k.bad{background:var(--bad-soft);border-color:#FECACA}
 .od-kv{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600}
 .od-k.bad .od-kv{color:var(--bad)}
 .od-kl{font-size:11px;color:var(--ink3);font-weight:500;margin-top:2px}
@@ -181,8 +181,8 @@ input,select,textarea{font-family:inherit;font-size:16px}
       <div class="card"><div class="card-h">ภาพรวมสต็อก</div><div class="chart-box"><canvas id="stock-chart"></canvas></div></div>
       <div class="card"><div class="card-h">สินค้าคงเหลือ <span id="stock-count" style="font-size:11px;color:var(--gold);font-weight:500">0</span></div><div id="stock-list"><div class="empty">กำลังโหลด…</div></div></div>
       <div class="card"><div class="card-h">กิจกรรมล่าสุด</div><div id="recent-list"><div class="empty">กำลังโหลด…</div></div></div>
-      <div class="card" style="border-color:rgba(255,107,107,0.35);background:rgba(255,107,107,0.08)">
-        <div class="card-h" style="color:#FF8A8A">⚠️ Low Stock Alert · Top 10 สินค้าขายดี</div>
+      <div class="card" style="border-color:rgba(239,68,68,0.25);background:rgba(254,242,242,0.9)">
+        <div class="card-h" style="color:#DC2626">⚠️ Low Stock Alert · Top 10 สินค้าขายดี</div>
         <div id="low-stock-list"><div class="empty">กำลังตรวจสอบ…</div></div>
       </div>
     </div>
