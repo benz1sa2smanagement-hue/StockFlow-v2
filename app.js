@@ -216,6 +216,37 @@
     }).join('');
     updateChart(ents.slice(0, 6));
     updateProducts(ents);
+    updateLowStock(ents);
+  }
+
+  function updateLowStock(ents) {
+    var el = document.getElementById('low-stock-list');
+    if (!el) return;
+    // คำนวณยอดขาย (out) ของแต่ละ SKU
+    var sales = {};
+    Object.values(movements || {}).forEach(function (m) {
+      if (m.type === 'out' || m.type === 'transfer') {
+        sales[m.skuId] = (sales[m.skuId] || 0) + (m.pieces || 0);
+      }
+    });
+    // เรียงตามยอดขายมาก → น้อย แล้วเอา Top 10 ที่สต็อกเหลือน้อย
+    var stockMap = {};
+    ents.forEach(function (p) { stockMap[p[0]] = p[1]; });
+    var candidates = Object.keys(sales).map(function (id) {
+      return { id: id, sold: sales[id], stock: stockMap[id] || 0, s: skus[id] || {} };
+    }).filter(function (x) {
+      return x.stock >= 0 && x.stock < 50; // เกณฑ์เหลือน้อย < 50 ชิ้น (ปรับได้)
+    }).sort(function (a, b) { return b.sold - a.sold; }).slice(0, 10);
+
+    if (!candidates.length) {
+      el.innerHTML = '<div class="empty" style="color:#A8B3D1">ไม่มีสินค้าขายดีที่สต็อกเหลือน้อย</div>';
+      return;
+    }
+    el.innerHTML = candidates.map(function (c) {
+      var name = c.s.name || c.id;
+      var f = fmtStock(c.stock, c.s);
+      return '<div class="row"><div class="dot r"></div><div class="row-b"><div class="row-n">' + name + '</div><div class="row-m">ขายไป ' + c.sold.toLocaleString() + ' · คงเหลือ</div></div><div class="row-q neg">' + f.main + '</div></div>';
+    }).join('');
   }
 
   function updateChart(ents) {
@@ -641,4 +672,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-
