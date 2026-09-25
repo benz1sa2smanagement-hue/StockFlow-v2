@@ -1,10 +1,9 @@
 /**
- * BigSeller CSV import for Pack tab (loads after pack.js)
+ * BigSeller CSV import + loader for pack extras
  */
 (function () {
   'use strict';
   var skusCache = {};
-
   function toast(msg) {
     var w = document.getElementById('toast-wrap');
     if (!w) return;
@@ -16,16 +15,12 @@
     setTimeout(function () { t.remove(); }, 2600);
   }
   function wsKey() { return sessionStorage.getItem('sf_session_ws') || ''; }
-  function roomId() {
-    return localStorage.getItem('sf_room_' + wsKey()) || 'WH_A';
-  }
+  function roomId() { return localStorage.getItem('sf_room_' + wsKey()) || 'WH_A'; }
   function loadSkus() {
     if (!wsKey()) return Promise.resolve({});
-    var url = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app/ws_' +
-      wsKey() + '/rooms/' + roomId() + '/skus.json';
+    var url = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app/ws_' + wsKey() + '/rooms/' + roomId() + '/skus.json';
     return fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
-      skusCache = d || {};
-      return skusCache;
+      skusCache = d || {}; return skusCache;
     }).catch(function () { return {}; });
   }
   function parseCsvText(text) {
@@ -34,10 +29,8 @@
     while (i < text.length) {
       var c = text[i];
       if (inQ) {
-        if (c === '"') {
-          if (text[i + 1] === '"') { field += '"'; i++; }
-          else inQ = false;
-        } else field += c;
+        if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+        else field += c;
       } else {
         if (c === '"') inQ = true;
         else if (c === ',') { row.push(field); field = ''; }
@@ -109,15 +102,11 @@
   }
   function ensureCsvUi() {
     var page = document.getElementById('page-pack');
-    if (!page) return;
-    if (document.getElementById('pack-csv-file')) return;
+    if (!page || document.getElementById('pack-csv-file')) return;
     var card = page.querySelector('.card');
     if (!card) return;
     var wrap = document.createElement('div');
-    wrap.innerHTML =
-      '<div class="field" style="margin-bottom:10px"><label>\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32 CSV BigSeller</label>' +
-      '<input type="file" id="pack-csv-file" accept=".csv,text/csv" style="font-size:13px;width:100%"></div>' +
-      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:12px">Export CSV \u0e08\u0e32\u0e01 BigSeller</div>';
+    wrap.innerHTML = '<div class="field" style="margin-bottom:10px"><label>CSV BigSeller</label><input type="file" id="pack-csv-file" accept=".csv,text/csv" style="font-size:13px;width:100%"></div><div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:12px">Export CSV</div>';
     card.insertBefore(wrap, card.firstChild);
   }
   function doImport(file) {
@@ -136,14 +125,13 @@
         var colPlat = pickCol(h, ['platform', 'channel', 'shop']);
         var statusEl = document.getElementById('pack-csv-status');
         if (!colSku && !colName && !colBarcode) {
-          toast('no SKU col');
+          toast('no SKU');
           if (statusEl) statusEl.textContent = h.slice(0, 6).join(', ');
           return;
         }
         var resetBtn = document.getElementById('pack-reset');
         if (resetBtn) resetBtn.click();
-        var firstOrder = '', firstTrack = '', firstPlat = '';
-        var added = 0, skipped = 0;
+        var firstOrder = '', firstTrack = '', firstPlat = '', added = 0, skipped = 0;
         var sel = document.getElementById('pack-add-sku');
         var qtyEl = document.getElementById('pack-add-qty');
         var addBtn = document.getElementById('pack-add-btn');
@@ -159,19 +147,13 @@
           if (!m) { skipped++; return; }
           if (sel && addBtn && qtyEl) {
             var has = false;
-            for (var oi = 0; oi < sel.options.length; oi++) {
-              if (sel.options[oi].value === m.id) { has = true; break; }
-            }
+            for (var oi = 0; oi < sel.options.length; oi++) if (sel.options[oi].value === m.id) has = true;
             if (!has) {
               var opt = document.createElement('option');
-              opt.value = m.id;
-              opt.textContent = (m.s.name || m.id);
+              opt.value = m.id; opt.textContent = (m.s.name || m.id);
               sel.appendChild(opt);
             }
-            sel.value = m.id;
-            qtyEl.value = String(qty);
-            addBtn.click();
-            added++;
+            sel.value = m.id; qtyEl.value = String(qty); addBtn.click(); added++;
           }
         });
         var orderInput = document.getElementById('pack-order');
@@ -195,10 +177,7 @@
     if (input && !input.getAttribute('data-csv-wired')) {
       input.setAttribute('data-csv-wired', '1');
       input.addEventListener('change', function () {
-        if (input.files && input.files[0]) {
-          doImport(input.files[0]);
-          input.value = '';
-        }
+        if (input.files && input.files[0]) { doImport(input.files[0]); input.value = ''; }
       });
     }
   }
@@ -209,7 +188,7 @@
   setTimeout(wire, 2000);
   setTimeout(wire, 4000);
   (function loadExtras() {
-    ['pack-sync.js', 'pack-alert.js'].forEach(function (src) {
+    ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js'].forEach(function (src) {
       if (document.querySelector('script[src="' + src + '"]')) return;
       var s = document.createElement('script');
       s.src = src;
