@@ -117,7 +117,7 @@
     wrap.innerHTML =
       '<div class="field" style="margin-bottom:10px"><label>\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e08\u0e32\u0e01 BigSeller (CSV)</label>' +
       '<input type="file" id="pack-csv-file" accept=".csv,text/csv" style="font-size:13px;width:100%"></div>' +
-      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:12px">Export \u0e08\u0e32\u0e01 BigSeller \u0e40\u0e1b\u0e47\u0e19 CSV \u0e41\u0e25\u0e49\u0e27\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e44\u0e1f\u0e25\u0e4c\u0e17\u0e35\u0e48\u0e19\u0e35\u0e48</div>';
+      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:12px">Export \u0e08\u0e32\u0e01 BigSeller \u0e40\u0e1b\u0e47\u0e19 CSV</div>';
     card.insertBefore(wrap, card.firstChild);
   }
   function doImport(file) {
@@ -127,17 +127,17 @@
         var parsed = parseCsvText(reader.result);
         if (!parsed.data.length) { toast('\u0e44\u0e1f\u0e25\u0e4c\u0e27\u0e48\u0e32\u0e07'); return; }
         var h = parsed.headers;
-        var colOrder = pickCol(h, ['order id', 'orderid', 'order_id', 'order no', 'order number', '\u0e40\u0e25\u0e02\u0e17\u0e35\u0e48\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d', '\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d', '\u0e40\u0e25\u0e02\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d']);
-        var colTrack = pickCol(h, ['tracking', 'tracking number', 'tracking_number', '\u0e40\u0e25\u0e02\u0e1e\u0e28\u0e38', '\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e25\u0e02\u0e1e\u0e28\u0e38']);
-        var colSku = pickCol(h, ['sku', 'seller sku', 'sku id', 'product sku', '\u0e23\u0e2b\u0e31\u0e2a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', '\u0e23\u0e2b\u0e31\u0e2a sku']);
-        var colName = pickCol(h, ['product name', 'product', 'item name', '\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'name']);
-        var colQty = pickCol(h, ['quantity', 'qty', '\u0e08\u0e33\u0e19\u0e27\u0e19', 'amount']);
-        var colBarcode = pickCol(h, ['barcode', 'bar code', 'ean', 'upc', '\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14']);
-        var colPlat = pickCol(h, ['platform', 'channel', 'shop', '\u0e41\u0e1e\u0e25\u0e15\u0e1f\u0e2d\u0e23\u0e4c\u0e21']);
+        var colOrder = pickCol(h, ['order id', 'orderid', 'order_id', 'order no', 'order number']);
+        var colTrack = pickCol(h, ['tracking', 'tracking number', 'tracking_number']);
+        var colSku = pickCol(h, ['sku', 'seller sku', 'sku id', 'product sku']);
+        var colName = pickCol(h, ['product name', 'product', 'item name', 'name']);
+        var colQty = pickCol(h, ['quantity', 'qty', 'amount']);
+        var colBarcode = pickCol(h, ['barcode', 'bar code', 'ean', 'upc']);
+        var colPlat = pickCol(h, ['platform', 'channel', 'shop']);
         var statusEl = document.getElementById('pack-csv-status');
         if (!colSku && !colName && !colBarcode) {
-          toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e04\u0e2d\u0e25\u0e31\u0e21\u0e19\u0e4c SKU / \u0e0a\u0e37\u0e48\u0e2d / \u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14');
-          if (statusEl) statusEl.textContent = '\u0e2b\u0e31\u0e27\u0e15\u0e32\u0e23\u0e32\u0e07: ' + h.slice(0, 6).join(', ');
+          toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e04\u0e2d\u0e25\u0e31\u0e21\u0e19\u0e4c SKU');
+          if (statusEl) statusEl.textContent = h.slice(0, 6).join(', ');
           return;
         }
         var resetBtn = document.getElementById('pack-reset');
@@ -156,11 +156,7 @@
           if (!firstTrack && colTrack) firstTrack = row[colTrack] || '';
           if (!firstPlat && colPlat) firstPlat = row[colPlat] || '';
           var m = matchSku(skuV, nameV, barV);
-          if (!m) {
-            skipped++;
-            unmatched.push(skuV || nameV || barV || '?');
-            return;
-          }
+          if (!m) { skipped++; unmatched.push(skuV || nameV || barV || '?'); return; }
           if (sel && addBtn && qtyEl) {
             var has = false;
             for (var oi = 0; oi < sel.options.length; oi++) {
@@ -188,16 +184,13 @@
           });
         }
         var msg = '\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23';
-        if (skipped) msg += ' \u00b7 \u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07 ' + skipped;
+        if (skipped) msg += ' \u00b7 skip ' + skipped;
         toast(msg);
-        if (statusEl) {
-          statusEl.textContent = msg + (unmatched.length ? ' (' + unmatched.slice(0, 3).join(', ') + ')' : '');
-        }
+        if (statusEl) statusEl.textContent = msg;
       };
       reader.readAsText(file, 'UTF-8');
     });
   }
-
   function wire() {
     ensureCsvUi();
     var input = document.getElementById('pack-csv-file');
@@ -211,11 +204,16 @@
       });
     }
   }
-
   document.addEventListener('click', function (e) {
     var btn = e.target.closest && e.target.closest('.ni[data-page="pack"]');
     if (btn) setTimeout(wire, 200);
   });
   setTimeout(wire, 2000);
   setTimeout(wire, 4000);
+  (function loadSync() {
+    if (document.querySelector('script[src="pack-sync.js"]')) return;
+    var s = document.createElement('script');
+    s.src = 'pack-sync.js';
+    document.body.appendChild(s);
+  })();
 })();
