@@ -1,5 +1,5 @@
 /**
- * Fix UI + freeze products list (no flicker)
+ * Fix UI + stop product list flicker + keep row clicks working
  */
 (function () {
   'use strict';
@@ -44,7 +44,6 @@
   }
   setTimeout(rebind, 1500);
 
-  /* Block app.js from rewriting prod-list while products page is active */
   (function blockProdListRewrite() {
     function hook() {
       var el = document.getElementById('prod-list');
@@ -60,17 +59,28 @@
         get: function () { return rawGet.call(this); },
         set: function (v) {
           var page = document.getElementById('page-products');
-          if (page && page.classList.contains('active') && this.querySelector && this.querySelector('.row[data-sku-id]')) {
-            return; // ignore poll overwrite
+          var html = String(v == null ? '' : v);
+          var newHasId = html.indexOf('data-sku-id') >= 0;
+          var oldHasId = !!(this.querySelector && this.querySelector('.row[data-sku-id]'));
+          if (page && page.classList.contains('active') && oldHasId && !newHasId) {
+            return;
           }
           rawSet.call(this, v);
         }
       });
     }
-    setTimeout(hook, 1000);
+    setTimeout(hook, 500);
+    setTimeout(hook, 1500);
     setTimeout(hook, 3000);
     document.addEventListener('click', function (e) {
-      if (e.target.closest && e.target.closest('.ni[data-page="products"]')) setTimeout(hook, 100);
+      if (e.target.closest && e.target.closest('.ni[data-page="products"]')) {
+        setTimeout(hook, 50);
+        setTimeout(function () {
+          if (typeof window.__reloadProductsBarcode === 'function') {
+            window.__reloadProductsBarcode();
+          }
+        }, 120);
+      }
     });
   })();
 })();
