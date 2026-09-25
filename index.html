@@ -235,12 +235,12 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <div class="field"><label>หน่วย</label><select id="rec-unit"><option value="pack">แพ็ค</option><option value="case">ลัง</option></select></div>
       </div>
       <div class="field" id="plat-wrap" style="display:none"><label>แพลตฟอร์ม</label><div class="plat" id="plat-btns">
-        <button type="button" data-plat="shopee">Shopee</button>
-        <button type="button" data-plat="lazada">Lazada</button>
-        <button type="button" data-plat="tiktok">TikTok</button>
-        <button type="button" data-plat="facebook">Facebook</button>
-        <button type="button" data-plat="line">LINE</button>
-        <button type="button" data-plat="other">อื่นๆ</button>
+        <button type="button" data-p="shopee">Shopee</button>
+        <button type="button" data-p="lazada">Lazada</button>
+        <button type="button" data-p="tiktok">TikTok</button>
+        <button type="button" data-p="facebook">Facebook</button>
+        <button type="button" data-p="line">LINE</button>
+        <button type="button" data-p="other">อื่นๆ</button>
       </div>
       <div id="plat-other-wrap" style="display:none;margin-top:8px"><input type="text" id="plat-other" placeholder="ระบุแพลตฟอร์ม"></div></div>
       <div class="field" id="adj-wrap" style="display:none"><label>ทิศทาง</label><div class="seg" id="adj-seg">
@@ -255,6 +255,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 </div>
 <div class="toast-w" id="toast-wrap"></div>
 <script src="app.js"></script>
+<script src="fix-ui.js"></script>
 <script src="pack.js"></script>
 </body>
 </html>
