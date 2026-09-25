@@ -115,9 +115,9 @@
     if (!card) return;
     var wrap = document.createElement('div');
     wrap.innerHTML =
-      '<div class="field" style="margin-bottom:10px"><label>\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e08\u0e32\u0e01 BigSeller (CSV)</label>' +
+      '<div class="field" style="margin-bottom:10px"><label>\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32 CSV BigSeller</label>' +
       '<input type="file" id="pack-csv-file" accept=".csv,text/csv" style="font-size:13px;width:100%"></div>' +
-      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:12px">Export \u0e08\u0e32\u0e01 BigSeller \u0e40\u0e1b\u0e47\u0e19 CSV</div>';
+      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:12px">Export CSV \u0e08\u0e32\u0e01 BigSeller</div>';
     card.insertBefore(wrap, card.firstChild);
   }
   function doImport(file) {
@@ -125,25 +125,25 @@
       var reader = new FileReader();
       reader.onload = function () {
         var parsed = parseCsvText(reader.result);
-        if (!parsed.data.length) { toast('\u0e44\u0e1f\u0e25\u0e4c\u0e27\u0e48\u0e32\u0e07'); return; }
+        if (!parsed.data.length) { toast('empty'); return; }
         var h = parsed.headers;
-        var colOrder = pickCol(h, ['order id', 'orderid', 'order_id', 'order no', 'order number']);
-        var colTrack = pickCol(h, ['tracking', 'tracking number', 'tracking_number']);
+        var colOrder = pickCol(h, ['order id', 'orderid', 'order_id', 'order no']);
+        var colTrack = pickCol(h, ['tracking', 'tracking number']);
         var colSku = pickCol(h, ['sku', 'seller sku', 'sku id', 'product sku']);
         var colName = pickCol(h, ['product name', 'product', 'item name', 'name']);
         var colQty = pickCol(h, ['quantity', 'qty', 'amount']);
-        var colBarcode = pickCol(h, ['barcode', 'bar code', 'ean', 'upc']);
+        var colBarcode = pickCol(h, ['barcode', 'ean', 'upc']);
         var colPlat = pickCol(h, ['platform', 'channel', 'shop']);
         var statusEl = document.getElementById('pack-csv-status');
         if (!colSku && !colName && !colBarcode) {
-          toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e04\u0e2d\u0e25\u0e31\u0e21\u0e19\u0e4c SKU');
+          toast('no SKU col');
           if (statusEl) statusEl.textContent = h.slice(0, 6).join(', ');
           return;
         }
         var resetBtn = document.getElementById('pack-reset');
         if (resetBtn) resetBtn.click();
         var firstOrder = '', firstTrack = '', firstPlat = '';
-        var added = 0, skipped = 0, unmatched = [];
+        var added = 0, skipped = 0;
         var sel = document.getElementById('pack-add-sku');
         var qtyEl = document.getElementById('pack-add-qty');
         var addBtn = document.getElementById('pack-add-btn');
@@ -156,7 +156,7 @@
           if (!firstTrack && colTrack) firstTrack = row[colTrack] || '';
           if (!firstPlat && colPlat) firstPlat = row[colPlat] || '';
           var m = matchSku(skuV, nameV, barV);
-          if (!m) { skipped++; unmatched.push(skuV || nameV || barV || '?'); return; }
+          if (!m) { skipped++; return; }
           if (sel && addBtn && qtyEl) {
             var has = false;
             for (var oi = 0; oi < sel.options.length; oi++) {
@@ -183,10 +183,8 @@
             if (pp && p.indexOf(pp) >= 0) b.click();
           });
         }
-        var msg = '\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23';
-        if (skipped) msg += ' \u00b7 skip ' + skipped;
-        toast(msg);
-        if (statusEl) statusEl.textContent = msg;
+        toast('import ' + added + (skipped ? ' skip ' + skipped : ''));
+        if (statusEl) statusEl.textContent = 'import ' + added;
       };
       reader.readAsText(file, 'UTF-8');
     });
@@ -210,10 +208,12 @@
   });
   setTimeout(wire, 2000);
   setTimeout(wire, 4000);
-  (function loadSync() {
-    if (document.querySelector('script[src="pack-sync.js"]')) return;
-    var s = document.createElement('script');
-    s.src = 'pack-sync.js';
-    document.body.appendChild(s);
+  (function loadExtras() {
+    ['pack-sync.js', 'pack-alert.js'].forEach(function (src) {
+      if (document.querySelector('script[src="' + src + '"]')) return;
+      var s = document.createElement('script');
+      s.src = src;
+      document.body.appendChild(s);
+    });
   })();
 })();
