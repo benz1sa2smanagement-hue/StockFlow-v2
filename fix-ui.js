@@ -1,5 +1,5 @@
 /**
- * Fix unresponsive buttons / unclosable sheets + freeze products list
+ * Fix UI + freeze products list (no flicker)
  */
 (function () {
   'use strict';
@@ -44,54 +44,33 @@
   }
   setTimeout(rebind, 1500);
 
-  /* Products list: stop flicker while user is on products page */
-  (function freezeProductsList() {
-    var snap = '';
-    var lock = false;
-    function currentList() { return document.getElementById('prod-list'); }
-    function onProducts() {
-      var p = document.getElementById('page-products');
-      return p && p.classList.contains('active');
-    }
-    function takeSnap() {
-      var el = currentList();
-      if (el && el.querySelector('.row[data-sku-id]')) snap = el.innerHTML;
-    }
-    function restoreIfNeeded() {
-      if (lock || !onProducts()) return;
-      var el = currentList();
-      if (!el || !snap) return;
-      if (el.querySelector('.row') && !el.querySelector('.row[data-sku-id]')) {
-        lock = true;
-        var page = document.getElementById('page-products');
-        var y = page ? page.scrollTop : 0;
-        el.innerHTML = snap;
-        if (page) page.scrollTop = y;
-        lock = false;
-      } else if (el.querySelector('.row[data-sku-id]')) {
-        snap = el.innerHTML;
-      }
-    }
-    var obsTimer = null;
-    function watch() {
-      var el = currentList();
-      if (!el || el._freezeObs) return;
-      var obs = new MutationObserver(function () {
-        if (lock) return;
-        clearTimeout(obsTimer);
-        obsTimer = setTimeout(restoreIfNeeded, 0);
+  /* Block app.js from rewriting prod-list while products page is active */
+  (function blockProdListRewrite() {
+    function hook() {
+      var el = document.getElementById('prod-list');
+      if (!el || el._innerHTMLHooked) return;
+      var desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+      if (!desc || !desc.set) return;
+      el._innerHTMLHooked = true;
+      var rawSet = desc.set;
+      var rawGet = desc.get;
+      Object.defineProperty(el, 'innerHTML', {
+        configurable: true,
+        enumerable: true,
+        get: function () { return rawGet.call(this); },
+        set: function (v) {
+          var page = document.getElementById('page-products');
+          if (page && page.classList.contains('active') && this.querySelector && this.querySelector('.row[data-sku-id]')) {
+            return; // ignore poll overwrite
+          }
+          rawSet.call(this, v);
+        }
       });
-      obs.observe(el, { childList: true });
-      el._freezeObs = obs;
     }
+    setTimeout(hook, 1000);
+    setTimeout(hook, 3000);
     document.addEventListener('click', function (e) {
-      var btn = e.target.closest && e.target.closest('.ni[data-page="products"]');
-      if (btn) setTimeout(function () { watch(); takeSnap(); }, 500);
+      if (e.target.closest && e.target.closest('.ni[data-page="products"]')) setTimeout(hook, 100);
     });
-    setInterval(function () {
-      if (onProducts()) { watch(); restoreIfNeeded(); }
-      else snap = '';
-    }, 2000);
-    setTimeout(watch, 3000);
   })();
 })();
