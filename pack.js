@@ -1,6 +1,6 @@
 /**
  * PackGuard module for StockFlow
- * Verify packing then auto stock-out via Firebase (same DB as StockFlow)
+ * Continuous camera barcode scan + auto stock-out
  */
 (function () {
   'use strict';
@@ -14,6 +14,10 @@
   var skus = {};
   var movements = {};
   var bound = false;
+  var camStream = null;
+  var camTimer = null;
+  var camRunning = false;
+  var html5Scanner = null;
 
   function toast(msg) {
     var w = document.getElementById('toast-wrap');
@@ -59,7 +63,7 @@
   }
   function packDedupe(v) {
     var n = Date.now();
-    if (packLastScan.v === v && n - packLastScan.t < 800) return false;
+    if (packLastScan.v === v && n - packLastScan.t < 1200) return false;
     packLastScan = { v: v, t: n };
     return true;
   }
@@ -121,12 +125,127 @@
       var done = l.scanned >= l.qty;
       return '<div class="row"><div class="row-ico">' + (done ? '\u2713' : (idx + 1)) + '</div><div class="row-b"><div class="row-n">' + (l.name || l.skuId) + '</div><div class="row-m">' + l.skuId + '</div></div><div class="row-q ' + (done ? 'pos' : '') + '">' + l.scanned + '/' + l.qty + '</div></div>';
     }).join('');
-    if (st) st.textContent = packCompleted ? '\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27' : (allDone ? '\u0e04\u0e23\u0e1a\u0e41\u0e25\u0e49\u0e27 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01' : '\u0e23\u0e2d\u0e2a\u0e41\u0e01\u0e19');
+    if (st) st.textContent = packCompleted ? '\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27' : (allDone ? '\u0e04\u0e23\u0e1a\u0e41\u0e25\u0e49\u0e27' : '\u0e23\u0e2d\u0e2a\u0e41\u0e01\u0e19');
     if (btn) {
       btn.disabled = !allDone || packCompleted;
       btn.style.opacity = (!allDone || packCompleted) ? '.4' : '1';
       btn.textContent = packCompleted ? '\u2713 \u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27' : '\u2713 \u0e41\u0e1e\u0e47\u0e01\u0e04\u0e23\u0e1a \u00b7 \u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01';
     }
+  }
+  function setCamStatus(msg, ok) {
+    var el = document.getElementById('pack-cam-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = ok === false ? 'var(--bad)' : (ok === true ? 'var(--ok)' : 'var(--ink3)');
+  }
+  function stopCamera() {
+    camRunning = false;
+    if (camTimer) { clearInterval(camTimer); camTimer = null; }
+    if (html5Scanner) {
+      try { html5Scanner.stop().catch(function () {}); } catch (e) {}
+      html5Scanner = null;
+    }
+    if (camStream) {
+      try { camStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      camStream = null;
+    }
+    var v = document.getElementById('pack-cam-video');
+    if (v) { try { v.srcObject = null; } catch (e) {} }
+    setCamStatus('\u0e01\u0e25\u0e49\u0e2d\u0e07\u0e1b\u0e34\u0e14', null);
+  }
+  function onDetectedCode(code) {
+    code = (code || '').trim();
+    if (!code) return;
+    if (!packDedupe('cam:' + code)) return;
+    var input = document.getElementById('pack-scan');
+    if (input) input.value = code;
+    packVerify();
+  }
+  function startNativeCamera() {
+    var video = document.getElementById('pack-cam-video');
+    if (!video) return Promise.reject(new Error('no video'));
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return Promise.reject(new Error('no getUserMedia'));
+    }
+    return navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    }).then(function (stream) {
+      camStream = stream;
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.muted = true;
+      return video.play().then(function () {
+        camRunning = true;
+        setCamStatus('\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2a\u0e41\u0e01\u0e19\u2026 \u0e0a\u0e35\u0e49\u0e44\u0e1b\u0e17\u0e35\u0e48\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14', true);
+        if (window.BarcodeDetector) {
+          var detector = new BarcodeDetector({
+            formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code', 'codabar', 'itf']
+          });
+          camTimer = setInterval(function () {
+            if (!camRunning) return;
+            detector.detect(video).then(function (codes) {
+              if (codes && codes.length) onDetectedCode(codes[0].rawValue);
+            }).catch(function () {});
+          }, 350);
+        } else {
+          return startHtml5QrFallback();
+        }
+      });
+    });
+  }
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  function startHtml5QrFallback() {
+    var boxId = 'pack-cam-html5';
+    var box = document.getElementById(boxId);
+    if (!box) return Promise.reject(new Error('no box'));
+    var video = document.getElementById('pack-cam-video');
+    if (video) video.style.display = 'none';
+    box.style.display = 'block';
+    return loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js').then(function () {
+      if (!window.Html5Qrcode) throw new Error('Html5Qrcode missing');
+      html5Scanner = new Html5Qrcode(boxId);
+      return html5Scanner.start(
+        { facingMode: 'environment' },
+        { fps: 8, qrbox: { width: 260, height: 140 }, aspectRatio: 1.5 },
+        function (decoded) { onDetectedCode(decoded); },
+        function () {}
+      ).then(function () {
+        camRunning = true;
+        setCamStatus('\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2a\u0e41\u0e01\u0e19\u2026 \u0e0a\u0e35\u0e49\u0e44\u0e1b\u0e17\u0e35\u0e48\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14', true);
+      });
+    });
+  }
+  function startCamera() {
+    if (camRunning) return;
+    setCamStatus('\u0e01\u0e33\u0e25\u0e31\u0e07\u0e40\u0e1b\u0e34\u0e14\u0e01\u0e25\u0e49\u0e2d\u0e07\u2026', null);
+    var video = document.getElementById('pack-cam-video');
+    if (video) video.style.display = 'block';
+    var box = document.getElementById('pack-cam-html5');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+    var p;
+    if (window.BarcodeDetector && navigator.mediaDevices) {
+      p = startNativeCamera().catch(function (err) {
+        console.warn('native cam fail', err);
+        return startHtml5QrFallback();
+      });
+    } else {
+      p = startHtml5QrFallback();
+    }
+    p.catch(function (err) {
+      console.warn('cam error', err);
+      setCamStatus('\u0e40\u0e1b\u0e34\u0e14\u0e01\u0e25\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49 \u2014 \u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e2b\u0e23\u0e37\u0e2d\u0e2a\u0e41\u0e01\u0e19 USB', false);
+      toast('\u0e40\u0e1b\u0e34\u0e14\u0e01\u0e25\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49 \u0e43\u0e0a\u0e49\u0e0a\u0e48\u0e2d\u0e07\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e44\u0e14\u0e49');
+    });
   }
   function packAddLine() {
     var skuEl = document.getElementById('pack-add-sku');
@@ -146,7 +265,7 @@
     if (qtyEl) qtyEl.value = '1';
     renderPackLines();
     toast('\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e41\u0e25\u0e49\u0e27');
-    setTimeout(function () { var i = document.getElementById('pack-scan'); if (i) i.focus(); }, 80);
+    startCamera();
   }
   function packVerify() {
     var input = document.getElementById('pack-scan');
@@ -171,7 +290,7 @@
       if (fb) {
         fb.style.background = 'var(--bad-soft)';
         fb.style.color = 'var(--bad)';
-        fb.textContent = '\u2715 \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1c\u0e34\u0e14 \u2014 \u0e1a\u0e25\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27 \u00b7 \u0e2a\u0e41\u0e01\u0e19: ' + v;
+        fb.textContent = '\u2715 \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1c\u0e34\u0e14 \u2014 \u0e1a\u0e25\u0e47\u0e2d\u0e01 \u00b7 ' + v;
       }
       try { if (navigator.vibrate) navigator.vibrate([80, 40, 80]); } catch (e) {}
       toast('\u0e1a\u0e25\u0e47\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1c\u0e34\u0e14');
@@ -185,10 +304,10 @@
       fb.style.color = 'var(--ok)';
       fb.textContent = '\u2713 \u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07 \u00b7 ' + (line.name || line.skuId) + ' \u00b7 ' + line.scanned + '/' + line.qty;
     }
+    try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) {}
     toast('\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07');
     if (input) input.value = '';
     renderPackLines();
-    setTimeout(function () { if (input) input.focus(); }, 50);
   }
   function packComplete() {
     if (packCompleted) { toast('\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e44\u0e1b\u0e41\u0e25\u0e49\u0e27'); return; }
@@ -201,6 +320,7 @@
     var date = todayStr();
     var btn = document.getElementById('pack-complete');
     if (btn) { btn.disabled = true; btn.textContent = '\u0e01\u0e33\u0e25\u0e31\u0e07\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u2026'; }
+    stopCamera();
     return loadData().then(function () {
       var stock = computeStock(movements);
       for (var i = 0; i < packLines.length; i++) {
@@ -209,26 +329,18 @@
         if (have < l.qty) {
           toast('\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e44\u0e21\u0e48\u0e1e\u0e2d: ' + (l.name || l.skuId) + ' \u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d ' + have);
           if (btn) { btn.disabled = false; btn.textContent = '\u2713 \u0e41\u0e1e\u0e47\u0e01\u0e04\u0e23\u0e1a \u00b7 \u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01'; }
+          startCamera();
           return;
         }
       }
       var chain = Promise.resolve();
       packLines.forEach(function (l) {
         chain = chain.then(function () {
-          var rec = {
-            skuId: l.skuId,
-            type: 'out',
-            qty: l.qty,
-            unit: 'pack',
-            pieces: l.qty,
-            date: date,
-            note: 'PackGuard \u00b7 ' + orderId,
-            platform: platform,
-            user: userName(),
-            createdAt: Date.now(),
-            packOrderId: orderId
-          };
-          return apiPost(rp() + '/movements', rec);
+          return apiPost(rp() + '/movements', {
+            skuId: l.skuId, type: 'out', qty: l.qty, unit: 'pack', pieces: l.qty,
+            date: date, note: 'PackGuard \u00b7 ' + orderId, platform: platform,
+            user: userName(), createdAt: Date.now(), packOrderId: orderId
+          });
         });
       });
       return chain.then(function () {
@@ -240,6 +352,7 @@
     }).catch(function (e) {
       toast('\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08: ' + (e.message || e));
       if (btn) { btn.disabled = false; btn.textContent = '\u2713 \u0e41\u0e1e\u0e47\u0e01\u0e04\u0e23\u0e1a \u00b7 \u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01'; }
+      startCamera();
     });
   }
   function packReset() {
@@ -252,6 +365,7 @@
     if (o) o.value = '';
     renderPackLines();
     toast('\u0e40\u0e23\u0e34\u0e48\u0e21\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e2b\u0e21\u0e48');
+    startCamera();
   }
   function ensurePackUI() {
     if (document.getElementById('page-pack')) return;
@@ -263,7 +377,7 @@
     page.innerHTML = [
       '<div class="pt">\u0e41\u0e1e\u0e47\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u00b7 \u0e01\u0e31\u0e19\u0e02\u0e2d\u0e07\u0e1c\u0e34\u0e14</div>',
       '<div class="card" style="padding:14px 16px;margin-bottom:12px">',
-      '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">\u0e2a\u0e41\u0e01\u0e19\u0e22\u0e37\u0e19\u0e22\u0e31\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e49\u0e04\u0e23\u0e1a \u2192 \u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e2d\u0e31\u0e15\u0e42\u0e19\u0e21\u0e31\u0e15\u0e34</div>',
+      '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">\u0e01\u0e25\u0e49\u0e2d\u0e07\u0e40\u0e1b\u0e34\u0e14\u0e04\u0e49\u0e32\u0e07 \u2014 \u0e2a\u0e41\u0e01\u0e19\u0e17\u0e35\u0e25\u0e30\u0e0a\u0e34\u0e49\u0e19\u0e44\u0e14\u0e49\u0e40\u0e25\u0e22</div>',
       '<div class="field"><label>\u0e40\u0e25\u0e02\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d / Tracking</label>',
       '<input type="text" id="pack-order" placeholder="Order ID / Tracking" autocomplete="off" enterkeyhint="go"></div>',
       '<div class="field"><label>\u0e41\u0e1e\u0e25\u0e15\u0e1f\u0e2d\u0e23\u0e4c\u0e21</label><div class="plat" id="pack-plat">',
@@ -282,16 +396,25 @@
       '<div class="card-h"><span>\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e41\u0e1e\u0e47\u0e01</span><span id="pack-status" style="font-size:11px;color:var(--ink3)"></span></div>',
       '<div id="pack-lines"></div>',
       '<div style="padding:12px 16px;border-top:1px solid var(--line)">',
-      '<div class="field" style="margin-bottom:8px"><label>\u0e2a\u0e41\u0e01\u0e19\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14 / SKU</label>',
-      '<input type="text" id="pack-scan" placeholder="\u0e2a\u0e41\u0e01\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e23\u0e2b\u0e31\u0e2a" autocomplete="off" enterkeyhint="go"></div>',
+      '<div style="position:relative;border-radius:14px;overflow:hidden;background:#0C0E12;margin-bottom:10px">',
+      '<video id="pack-cam-video" playsinline muted autoplay style="width:100%;max-height:220px;object-fit:cover;display:block"></video>',
+      '<div id="pack-cam-html5" style="display:none;width:100%;min-height:180px"></div>',
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:8px 12px;background:linear-gradient(transparent,rgba(0,0,0,.65));color:#fff;font-size:12px;font-weight:500" id="pack-cam-status">\u0e01\u0e33\u0e25\u0e31\u0e07\u0e40\u0e1b\u0e34\u0e14\u0e01\u0e25\u0e49\u0e2d\u0e07\u2026</div>',
+      '</div>',
+      '<div style="display:flex;gap:8px;margin-bottom:10px">',
+      '<button type="button" class="btn" id="pack-cam-on" style="flex:1;background:var(--ink);color:#fff;padding:12px;border-radius:12px;font-size:13px">\u0e40\u0e1b\u0e34\u0e14\u0e01\u0e25\u0e49\u0e2d\u0e07</button>',
+      '<button type="button" class="btn" id="pack-cam-off" style="flex:1;background:var(--bg);border:1px solid var(--line2);padding:12px;border-radius:12px;font-size:13px">\u0e1b\u0e34\u0e14\u0e01\u0e25\u0e49\u0e2d\u0e07</button>',
+      '</div>',
+      '<div class="field" style="margin-bottom:8px"><label>\u0e2b\u0e23\u0e37\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c / \u0e2a\u0e41\u0e01\u0e19 USB</label>',
+      '<input type="text" id="pack-scan" placeholder="\u0e2a\u0e41\u0e01\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e23\u0e2b\u0e31\u0e2a" autocomplete="off" enterkeyhint="go" inputmode="text"></div>',
       '<div id="pack-fb" style="font-size:13px;font-weight:600;padding:12px;border-radius:12px;background:var(--bg);color:var(--ink3);margin-bottom:10px">\u0e23\u0e2d\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u2026</div>',
       '<button type="button" class="btn btn-ink" id="pack-complete" disabled style="opacity:.4">\u2713 \u0e41\u0e1e\u0e47\u0e01\u0e04\u0e23\u0e1a \u00b7 \u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01</button>',
       '<button type="button" class="btn" id="pack-reset" style="margin-top:8px;background:var(--bg);border:1px solid var(--line2)">\u0e40\u0e23\u0e34\u0e48\u0e21\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e2b\u0e21\u0e48</button>',
       '</div></div>',
       '<div class="card" style="padding:14px 16px">',
-      '<div style="font-size:12px;font-weight:600;margin-bottom:6px">\u0e2a\u0e16\u0e34\u0e15\u0e34\u0e01\u0e32\u0e23\u0e01\u0e31\u0e19\u0e02\u0e2d\u0e07\u0e1c\u0e34\u0e14 (\u0e40\u0e04\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e19\u0e35\u0e49)</div>',
+      '<div style="font-size:12px;font-weight:600;margin-bottom:6px">\u0e2a\u0e16\u0e34\u0e15\u0e34\u0e01\u0e32\u0e23\u0e01\u0e31\u0e19\u0e02\u0e2d\u0e07\u0e1c\u0e34\u0e14</div>',
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">',
-      '<div>\u0e1a\u0e25\u0e47\u0e2d\u0e01\u0e2a\u0e41\u0e01\u0e19\u0e1c\u0e34\u0e14<br><b id="pack-stat-wrong" style="font-size:18px;font-family:IBM Plex Mono,monospace">0</b></div>',
+      '<div>\u0e1a\u0e25\u0e47\u0e2d\u0e01<br><b id="pack-stat-wrong" style="font-size:18px;font-family:IBM Plex Mono,monospace">0</b></div>',
       '<div>\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e17\u0e35\u0e48\u0e01\u0e31\u0e19\u0e44\u0e14\u0e49<br><b id="pack-stat-prot" style="font-size:18px;font-family:IBM Plex Mono,monospace">0</b></div>',
       '</div></div>'
     ].join('');
@@ -302,21 +425,11 @@
     document.addEventListener('click', function (e) {
       var t = e.target;
       if (!t) return;
-      if (t.id === 'pack-add-btn' || (t.closest && t.closest('#pack-add-btn'))) {
-        e.preventDefault();
-        packAddLine();
-        return;
-      }
-      if (t.id === 'pack-complete' || (t.closest && t.closest('#pack-complete'))) {
-        e.preventDefault();
-        packComplete();
-        return;
-      }
-      if (t.id === 'pack-reset' || (t.closest && t.closest('#pack-reset'))) {
-        e.preventDefault();
-        packReset();
-        return;
-      }
+      if (t.id === 'pack-add-btn' || (t.closest && t.closest('#pack-add-btn'))) { e.preventDefault(); packAddLine(); return; }
+      if (t.id === 'pack-complete' || (t.closest && t.closest('#pack-complete'))) { e.preventDefault(); packComplete(); return; }
+      if (t.id === 'pack-reset' || (t.closest && t.closest('#pack-reset'))) { e.preventDefault(); packReset(); return; }
+      if (t.id === 'pack-cam-on' || (t.closest && t.closest('#pack-cam-on'))) { e.preventDefault(); startCamera(); return; }
+      if (t.id === 'pack-cam-off' || (t.closest && t.closest('#pack-cam-off'))) { e.preventDefault(); stopCamera(); return; }
       var platBtn = t.closest && t.closest('#pack-plat button');
       if (platBtn) {
         packPlat = platBtn.getAttribute('data-pplat') || 'shopee';
@@ -324,18 +437,23 @@
       }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter') return;
-      if (e.target && e.target.id === 'pack-scan') {
-        e.preventDefault();
-        packVerify();
-      }
+      if (e.key === 'Enter' && e.target && e.target.id === 'pack-scan') { e.preventDefault(); packVerify(); }
+    });
+    document.querySelectorAll('.ni[data-page]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.getAttribute('data-page') !== 'pack') stopCamera();
+      });
     });
     bound = true;
   }
   function onShowPack() {
     ensurePackUI();
     bindPackEvents();
-    loadData().then(function () { renderPackLines(); renderPackStats(); });
+    loadData().then(function () {
+      renderPackLines();
+      renderPackStats();
+      setTimeout(startCamera, 300);
+    });
   }
   window.__packShow = onShowPack;
   function init() {
