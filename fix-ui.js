@@ -1,99 +1,97 @@
 /**
- * Fix unresponsive buttons / unclosable sheets
- * Runs after app.js — safe re-bind even if app.js bindUI threw midway
+ * Fix unresponsive buttons / unclosable sheets + freeze products list
  */
 (function () {
   'use strict';
 
-  function closeRec() {
-    var el = document.getElementById('rec-ov');
-    if (el) el.classList.remove('open');
-  }
-  function closeOd() {
-    var el = document.getElementById('od-overlay');
-    if (el) el.classList.remove('open');
-  }
-
-  function ensureOdOverlay() {
-    if (document.getElementById('od-overlay')) return;
-    var div = document.createElement('div');
-    div.className = 'ov';
-    div.id = 'od-overlay';
-    div.innerHTML = '<div class="sheet" style="max-height:92vh">' +
-      '<div class="sheet-h"><div class="sheet-t">\u0e08\u0e48\u0e32\u0e22\u0e2d\u0e2d\u0e01 \u00b7 \u0e23\u0e32\u0e22\u0e25\u0e30\u0e40\u0e2d\u0e35\u0e22\u0e14</div>' +
-      '<button type="button" class="sheet-x" id="od-close">\u2715</button></div>' +
-      '<div class="od-date">' +
-      '<button type="button" class="od-db" id="od-prev">\u2039</button>' +
-      '<div class="od-dl" id="od-date-label">\u2014</div>' +
-      '<button type="button" class="od-db" id="od-next">\u203a</button>' +
-      '<button type="button" class="od-today" id="od-today">\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49</button></div>' +
-      '<div class="od-kpi">' +
-      '<div class="od-k bad"><div class="od-kv" id="od-total">0</div><div class="od-kl">\u0e0a\u0e34\u0e49\u0e19\u0e17\u0e35\u0e48\u0e08\u0e48\u0e32\u0e22</div></div>' +
-      '<div class="od-k"><div class="od-kv" id="od-skucount">0</div><div class="od-kl">SKU</div></div></div>' +
-      '<div class="od-sec">\u0e15\u0e32\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</div><div class="od-ch"><canvas id="ch-out-bar"></canvas></div>' +
-      '<div class="od-sec">\u0e2a\u0e31\u0e14\u0e2a\u0e48\u0e27\u0e19</div><div class="od-ch" style="height:180px"><canvas id="ch-out-pie"></canvas></div>' +
-      '<div class="od-sec">\u0e15\u0e32\u0e21\u0e41\u0e1e\u0e25\u0e15\u0e1f\u0e2d\u0e23\u0e4c\u0e21</div><div class="od-ch" style="height:180px"><canvas id="ch-out-plat"></canvas></div>' +
-      '<div class="od-sec">\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23</div><div id="od-list"><div class="empty">\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14\u2026</div></div></div>';
-    document.body.appendChild(div);
-  }
-
-  function bindOnce(el, type, fn, key) {
+  function safeOn(id, event, handler) {
+    var el = document.getElementById(id);
     if (!el) return;
-    var mark = 'data-fix-' + key;
-    if (el.getAttribute(mark)) return;
-    el.setAttribute(mark, '1');
-    el.addEventListener(type, fn);
+    el.addEventListener(event, handler);
   }
 
-  function wire() {
-    ensureOdOverlay();
-
-    bindOnce(document.getElementById('rec-close'), 'click', function (e) {
+  function rebind() {
+    safeOn('rec-close', 'click', function (e) {
       e.preventDefault();
-      e.stopPropagation();
-      closeRec();
-    }, 'rec-close');
-
-    bindOnce(document.getElementById('rec-ov'), 'click', function (e) {
-      if (e.target === this) closeRec();
-    }, 'rec-ov');
-
-    bindOnce(document.getElementById('od-close'), 'click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      closeOd();
-    }, 'od-close');
-
-    bindOnce(document.getElementById('od-overlay'), 'click', function (e) {
-      if (e.target === this) closeOd();
-    }, 'od-ov');
-
-    document.querySelectorAll('.ni[data-page]').forEach(function (btn) {
-      bindOnce(btn, 'click', function () {
-        var name = btn.getAttribute('data-page');
-        document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
-        var page = document.getElementById('page-' + name);
-        if (page) page.classList.add('active');
-        document.querySelectorAll('.ni[data-page]').forEach(function (b) { b.classList.remove('on'); });
-        btn.classList.add('on');
-        if (name === 'pack' && typeof window.__packShow === 'function') {
-          setTimeout(window.__packShow, 30);
-        }
-      }, 'nav-' + btn.getAttribute('data-page'));
+      var ov = document.getElementById('rec-ov');
+      if (ov) ov.classList.remove('open');
     });
-
-    bindOnce(document, 'keydown', function (e) {
-      if (e.key !== 'Escape') return;
-      closeRec();
-      closeOd();
-    }, 'esc');
+    var recOv = document.getElementById('rec-ov');
+    if (recOv && !recOv._fixBound) {
+      recOv._fixBound = true;
+      recOv.addEventListener('click', function (e) {
+        if (e.target === recOv) recOv.classList.remove('open');
+      });
+    }
+    safeOn('od-close', 'click', function (e) {
+      e.preventDefault();
+      var ov = document.getElementById('od-overlay');
+      if (ov) ov.classList.remove('open');
+    });
+    var od = document.getElementById('od-overlay');
+    if (od && !od._fixBound) {
+      od._fixBound = true;
+      od.addEventListener('click', function (e) {
+        if (e.target === od) od.classList.remove('open');
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wire);
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(rebind, 400); });
   } else {
-    wire();
+    setTimeout(rebind, 400);
   }
-  setTimeout(wire, 400);
-  setTimeout(wire, 1200);
+  setTimeout(rebind, 1500);
+
+  /* Products list: stop flicker while user is on products page */
+  (function freezeProductsList() {
+    var snap = '';
+    var lock = false;
+    function currentList() { return document.getElementById('prod-list'); }
+    function onProducts() {
+      var p = document.getElementById('page-products');
+      return p && p.classList.contains('active');
+    }
+    function takeSnap() {
+      var el = currentList();
+      if (el && el.querySelector('.row[data-sku-id]')) snap = el.innerHTML;
+    }
+    function restoreIfNeeded() {
+      if (lock || !onProducts()) return;
+      var el = currentList();
+      if (!el || !snap) return;
+      if (el.querySelector('.row') && !el.querySelector('.row[data-sku-id]')) {
+        lock = true;
+        var page = document.getElementById('page-products');
+        var y = page ? page.scrollTop : 0;
+        el.innerHTML = snap;
+        if (page) page.scrollTop = y;
+        lock = false;
+      } else if (el.querySelector('.row[data-sku-id]')) {
+        snap = el.innerHTML;
+      }
+    }
+    var obsTimer = null;
+    function watch() {
+      var el = currentList();
+      if (!el || el._freezeObs) return;
+      var obs = new MutationObserver(function () {
+        if (lock) return;
+        clearTimeout(obsTimer);
+        obsTimer = setTimeout(restoreIfNeeded, 0);
+      });
+      obs.observe(el, { childList: true });
+      el._freezeObs = obs;
+    }
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.ni[data-page="products"]');
+      if (btn) setTimeout(function () { watch(); takeSnap(); }, 500);
+    });
+    setInterval(function () {
+      if (onProducts()) { watch(); restoreIfNeeded(); }
+      else snap = '';
+    }, 2000);
+    setTimeout(watch, 3000);
+  })();
 })();
