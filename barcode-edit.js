@@ -1,6 +1,7 @@
 /**
  * Barcode editor for StockFlow products page
  * Survives app.js updateProducts() overwrites (poll every 5s)
+ * Can edit name, barcode, unitSku
  */
 (function () {
   'use strict';
@@ -40,17 +41,18 @@
     ov.id = 'bc-ov';
     ov.innerHTML =
       '<div class="sheet">' +
-      '<div class="sheet-h"><div class="sheet-t">\u0e43\u0e2a\u0e48\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</div>' +
+      '<div class="sheet-h"><div class="sheet-t">\u0e41\u0e01\u0e49\u0e44\u0e02\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</div>' +
       '<button type="button" class="sheet-x" id="bc-close">\u2715</button></div>' +
       '<div class="sheet-b">' +
-      '<div style="font-size:13px;color:var(--ink2);margin-bottom:4px" id="bc-name">\u2014</div>' +
-      '<div style="font-size:11px;color:var(--ink3);margin-bottom:12px" id="bc-id">\u2014</div>' +
+      '<div style="font-size:11px;color:var(--ink3);margin-bottom:8px" id="bc-id">\u2014</div>' +
+      '<div class="field"><label>\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</label>' +
+      '<input type="text" id="bc-name-input" placeholder="\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32" autocomplete="off"></div>' +
       '<div class="field"><label>\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14 / \u0e23\u0e2b\u0e31\u0e2a\u0e2a\u0e41\u0e01\u0e19</label>' +
       '<input type="text" id="bc-input" placeholder="\u0e2a\u0e41\u0e01\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14" autocomplete="off" enterkeyhint="done"></div>' +
       '<div class="field"><label>SKU \u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 BigSeller</label>' +
       '<input type="text" id="bc-sku" placeholder="\u0e40\u0e0a\u0e48\u0e19 KIY-ROLL-250" autocomplete="off"></div>' +
       '<button type="button" class="btn btn-ink" id="bc-save">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01</button>' +
-      '<p style="font-size:11px;color:var(--ink3);margin-top:8px">\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14\u0e43\u0e0a\u0e49\u0e15\u0e2d\u0e19\u0e2a\u0e41\u0e01\u0e19\u0e41\u0e1e\u0e47\u0e01</p>' +
+      '<p style="font-size:11px;color:var(--ink3);margin-top:8px">\u0e41\u0e01\u0e49\u0e0a\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e15\u0e23\u0e07\u0e01\u0e31\u0e1a BigSeller \u00b7 \u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14\u0e43\u0e0a\u0e49\u0e15\u0e2d\u0e19\u0e2a\u0e41\u0e01\u0e19\u0e41\u0e1e\u0e47\u0e01</p>' +
       '</div></div>';
     document.body.appendChild(ov);
     document.getElementById('bc-close').addEventListener('click', function (e) {
@@ -72,33 +74,39 @@
   function openEdit(id, name, barcode, unitSku) {
     ensureSheet();
     editingId = id;
-    document.getElementById('bc-name').textContent = name || id;
-    document.getElementById('bc-id').textContent = id;
+    document.getElementById('bc-id').textContent = 'ID: ' + id;
+    var ni = document.getElementById('bc-name-input');
+    if (ni) ni.value = name || '';
     document.getElementById('bc-input').value = barcode || '';
     document.getElementById('bc-sku').value = unitSku || '';
     document.getElementById('bc-ov').classList.add('open');
     setTimeout(function () {
-      var i = document.getElementById('bc-input');
+      var i = document.getElementById('bc-name-input') || document.getElementById('bc-input');
       if (i) { i.focus(); i.select(); }
     }, 200);
   }
 
   function saveBarcode() {
     if (!editingId || !wsKey()) { toast('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e25\u0e47\u0e2d\u0e01\u0e2d\u0e34\u0e19'); return; }
+    var nameEl = document.getElementById('bc-name-input');
+    var name = (nameEl && nameEl.value || '').trim();
     var barcode = (document.getElementById('bc-input').value || '').trim();
     var unitSku = (document.getElementById('bc-sku').value || '').trim();
-    var body = { barcode: barcode || null };
+    if (!name) { toast('\u0e01\u0e23\u0e2d\u0e01\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32'); return; }
+    var body = { name: name, barcode: barcode || null };
     if (unitSku) body.unitSku = unitSku;
+    else body.unitSku = null;
     api(rp() + '/skus/' + editingId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }).then(function () {
       if (skusCache[editingId]) {
+        skusCache[editingId].name = name;
         skusCache[editingId].barcode = barcode;
-        if (unitSku) skusCache[editingId].unitSku = unitSku;
+        skusCache[editingId].unitSku = unitSku || '';
       }
-      toast('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14\u0e41\u0e25\u0e49\u0e27');
+      toast('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e0a\u0e37\u0e48\u0e2d \u00b7 \u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14 \u0e41\u0e25\u0e49\u0e27');
       document.getElementById('bc-ov').classList.remove('open');
       setTimeout(reloadProductsWithBarcode, 100);
     }).catch(function (e) {
@@ -161,7 +169,7 @@
         (s.name || x.id) + '</div><div class="row-m">' + meta.join(' \u00b7 ') +
         '</div></div><div class="row-q">' + x.stock + '</div></div>';
     }).join('') +
-      '<div class="empty" style="padding:12px;font-size:11px">\u0e04\u0e25\u0e34\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2a\u0e48\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14 / SKU</div>';
+      '<div class="empty" style="padding:12px;font-size:11px">\u0e04\u0e25\u0e34\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e41\u0e01\u0e49\u0e0a\u0e37\u0e48\u0e2d / \u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14 / SKU</div>';
     wireListClicks();
   }
 
