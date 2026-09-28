@@ -23,21 +23,23 @@
   function hardFocusScan() {
     var page = document.getElementById('page-pack');
     if (!page || !page.classList.contains('active')) return;
+    var order = document.getElementById('pack-order');
     var scan = document.getElementById('pack-scan');
-    if (!scan) return;
+    var target = order || scan;
+    if (!target) return;
     try {
-      scan.removeAttribute('readonly');
-      scan.setAttribute('lang', 'en');
-      scan.setAttribute('spellcheck', 'false');
-      scan.setAttribute('autocomplete', 'off');
-      scan.setAttribute('inputmode', 'text');
-      if (document.activeElement && document.activeElement !== scan) {
+      target.removeAttribute('readonly');
+      target.setAttribute('lang', 'en');
+      target.setAttribute('spellcheck', 'false');
+      target.setAttribute('autocomplete', 'off');
+      target.setAttribute('inputmode', 'text');
+      if (document.activeElement && document.activeElement !== target) {
         try { document.activeElement.blur(); } catch (e) {}
       }
-      scan.focus({ preventScroll: true });
-      try { scan.select(); } catch (e2) {}
+      target.focus({ preventScroll: true });
+      try { target.select(); } catch (e2) {}
     } catch (e) {
-      try { scan.focus(); } catch (e3) {}
+      try { target.focus(); } catch (e3) {}
     }
   }
   function focusScanSoon() {
@@ -381,7 +383,7 @@
   ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js'].forEach(function (src) {
     if (document.querySelector('script[src*="' + src.replace('.js', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=upload4';
+    s.src = src + '?v=upload5';
     document.body.appendChild(s);
   });
 
