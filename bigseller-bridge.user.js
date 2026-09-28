@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         StockFlow BigSeller Bridge
 // @namespace    https://benz1sa2smanagement-hue.github.io/StockFlow-v2/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Pull orders from logged-in BigSeller tab into StockFlow via Firebase
 // @match        https://*.bigseller.com/*
 // @match        https://www.bigseller.com/*
@@ -103,7 +103,8 @@
           platform: norm(data.platform || data.channel || data.shopName || data.marketplace || data.site || ''),
           printStatus: norm(data.printStatus || data.labelPrintStatus || data.print_status || data.isPrint || data.printed || ''),
           shipStatus: norm(data.shippingStatus || data.shipStatus || data.packageStatus || data.orderStatus || data.statusName || data.status || ''),
-          printedAt: data.printTime || data.printedAt || data.labelPrintTime || null,
+          printedAt: data.printTime || data.printedAt || data.labelPrintTime || data.printDate || null,
+          orderAt: data.orderTime || data.createTime || data.createdAt || data.payTime || data.paymentTime || data.orderDate || data.gmtCreate || null,
           lines: lines
         });
       }
@@ -151,8 +152,8 @@
     var pr = String(order.printStatus || '').toLowerCase();
     var sh = String(order.shipStatus || '').toLowerCase();
     var printed = /print|printed|1|true|yes|done|already/.test(pr) || !!order.printedAt || !!order.track;
-    var shipped = /ship|dispatch|handover|picked|in_transit|delivered|\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07|\u0e2a\u0e48\u0e07\u0e2d\u0e2d\u0e01/.test(sh);
-    var notPrinted = /unprint|not.?print|0|false|no|\u0e23\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c|\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48/.test(pr);
+    var shipped = /ship|dispatch|handover|picked|in_transit|delivered/.test(sh);
+    var notPrinted = /unprint|not.?print|0|false|no/.test(pr);
     if (filter === 'printed_not_shipped') {
       if (shipped) return false;
       if (printed || order.track) return true;
@@ -164,12 +165,43 @@
     return true;
   }
 
+  function startOfLocalDay(d) {
+    var x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x.getTime();
+  }
+
+  function parseAnyTime(v) {
+    if (v == null || v === '') return null;
+    if (typeof v === 'number') return v < 1e12 ? v * 1000 : v;
+    var s = String(v).trim();
+    if (/^\d{10,13}$/.test(s)) {
+      var n = parseInt(s, 10);
+      return n < 1e12 ? n * 1000 : n;
+    }
+    var t = Date.parse(s);
+    return isNaN(t) ? null : t;
+  }
+
+  function matchDayRange(order, dayRange) {
+    dayRange = parseInt(dayRange, 10);
+    if (isNaN(dayRange) || dayRange < 0) dayRange = 0;
+    if (dayRange > 7) dayRange = 7;
+    var ts = parseAnyTime(order.printedAt) || parseAnyTime(order.orderAt);
+    if (ts == null) return true; // keep if unknown date
+    var today0 = startOfLocalDay(Date.now());
+    var from = today0 - dayRange * 24 * 60 * 60 * 1000;
+    var to = today0 + 24 * 60 * 60 * 1000 - 1;
+    return ts >= from && ts <= to;
+  }
+
   function applyPullFilters(list, req) {
     req = req || {};
     var plats = req.platforms || [];
     var pf = req.printFilter || 'all';
+    var dayRange = req.dayRange != null ? req.dayRange : 0;
     return (list || []).filter(function (o) {
-      return matchPlatform(o.platform, plats) && matchPrintFilter(o, pf);
+      return matchPlatform(o.platform, plats) && matchPrintFilter(o, pf) && matchDayRange(o, dayRange);
     });
   }
 
@@ -193,7 +225,7 @@
     return fbPut(base + '/bsOrders', payload).then(function () {
       return fbPut(base + '/bsBridge/lastPull', {
         at: Date.now(), ok: count > 0, count: count, pullRequestAt: pullAt || 0,
-        error: count ? '' : 'No matching orders. Open printed / to-pack list, refresh, then pull again.'
+        error: count ? '' : 'No matching orders for filters/day range.'
       });
     }).then(function () {
       heartbeat(count ? ('sent ' + count + ' orders') : 'no orders');
