@@ -1,9 +1,14 @@
 /**
- * BigSeller CSV / Excel import for Pack tab
- * Supports Thai BigSeller columns + .xlsx via SheetJS
+ * BigSeller CSV / Excel import — saves orders for shipping-label scan
  */
 (function () {
   'use strict';
+  (function preloadOrders() {
+    if (document.querySelector('script[src="pack-orders.js"]')) return;
+    var s = document.createElement('script');
+    s.src = 'pack-orders.js';
+    document.head.appendChild(s);
+  })();
   var skusCache = {};
 
   function toast(msg) {
@@ -143,7 +148,7 @@
       order: pickCol(headers, ['\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e25\u0e02\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d', 'order id', 'orderid', 'order_id', 'order no', 'order number']),
       track: pickCol(headers, ['\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e25\u0e02\u0e1e\u0e28\u0e38', '\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e25\u0e02\u0e41\u0e17\u0e23\u0e04\u0e01\u0e4c\u0e01\u0e34\u0e49\u0e07', 'tracking', 'tracking number', 'package id']),
       sku: pickCol(headers, ['SKU', 'sku', 'seller sku', 'SKU Merchant', '\u0e23\u0e2b\u0e31\u0e2a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32']),
-      name: pickCol(headers, ['\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'product name', 'product', 'name', '\u0e0a\u0e37\u0e48\u0e2d\u0e15\u0e31\u0e27\u0e40\u0e25\u0e37\u0e2d\u0e01']),
+      name: pickCol(headers, ['\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'product name', 'product', 'name']),
       qty: pickCol(headers, ['\u0e08\u0e33\u0e19\u0e27\u0e19', 'quantity', 'qty', 'amount']),
       barcode: pickCol(headers, ['barcode', 'ean', 'upc', '\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14']),
       plat: pickCol(headers, ['\u0e41\u0e1e\u0e25\u0e15\u0e1f\u0e2d\u0e23\u0e4c\u0e21', 'platform', 'channel', 'shop'])
@@ -161,7 +166,7 @@
       '<label>\u0e44\u0e1f\u0e25\u0e4c BigSeller (CSV / Excel)</label>' +
       '<input type="file" id="pack-csv-file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="font-size:13px;width:100%">' +
       '</div>' +
-      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:8px">\u0e23\u0e2d\u0e07\u0e23\u0e31\u0e1a CSV \u0e41\u0e25\u0e30 Excel \u0e08\u0e32\u0e01 BigSeller</div>' +
+      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:8px">\u0e2d\u0e31\u0e1b\u0e44\u0e1f\u0e25\u0e4c\u0e41\u0e25\u0e49\u0e27\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e44\u0e14\u0e49</div>' +
       '<div id="pack-csv-orders" style="display:none;margin-bottom:12px"></div>';
     card.insertBefore(wrap, card.firstChild);
   }
@@ -213,6 +218,43 @@
     if (statusEl) statusEl.textContent = msg;
   }
 
+  function buildAndSaveAllOrders(groups, orderList, map) {
+    var orders = [];
+    orderList.forEach(function (oid) {
+      var rows = groups[oid] || [];
+      var lines = [];
+      var track = '', plat = '';
+      rows.forEach(function (row) {
+        var skuV = map.sku ? row[map.sku] : '';
+        var nameV = map.name ? row[map.name] : '';
+        var barV = map.barcode ? row[map.barcode] : '';
+        var qty = parseInt(map.qty ? row[map.qty] : '1', 10) || 1;
+        if (!track && map.track) track = row[map.track] || '';
+        if (!plat && map.plat) plat = row[map.plat] || '';
+        var m = matchSku(skuV, nameV, barV);
+        if (!m) return;
+        var s = m.s || {};
+        var exist = lines.find(function (l) { return l.skuId === m.id; });
+        if (exist) exist.qty += qty;
+        else lines.push({ skuId: m.id, name: s.name || m.id, qty: qty, unitSku: s.unitSku || skuV || '', barcode: s.barcode || barV || '' });
+      });
+      if (lines.length) orders.push({ id: oid, track: track || oid, packageId: track || oid, platform: plat, lines: lines });
+    });
+    function doSave() {
+      if (typeof window.__bsSaveOrders === 'function') {
+        var n = window.__bsSaveOrders(orders);
+        var statusEl = document.getElementById('pack-csv-status');
+        var msg = '\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01 ' + n + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e44\u0e14\u0e49';
+        toast(msg);
+        if (statusEl) statusEl.textContent = msg;
+      } else {
+        setTimeout(doSave, 400);
+      }
+    }
+    doSave();
+    return orders;
+  }
+
   function showOrderPicker(parsed) {
     var map = colMap(parsed.headers);
     var box = document.getElementById('pack-csv-orders');
@@ -229,6 +271,7 @@
       if (!groups[oid]) { groups[oid] = []; orderList.push(oid); }
       groups[oid].push(row);
     });
+    buildAndSaveAllOrders(groups, orderList, map);
     if (orderList.length === 1) {
       if (box) box.style.display = 'none';
       applyOrderRows(groups[orderList[0]], map, orderList[0]);
@@ -250,7 +293,7 @@
       var oid = document.getElementById('pack-csv-order-sel').value;
       applyOrderRows(groups[oid] || [], map, oid);
     };
-    if (statusEl) statusEl.textContent = '\u0e1e\u0e1a ' + orderList.length + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e40\u0e25\u0e37\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27\u0e01\u0e14\u0e42\u0e2b\u0e25\u0e14';
+    if (statusEl) statusEl.textContent = '\u0e1e\u0e1a ' + orderList.length + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e2b\u0e23\u0e37\u0e2d\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e42\u0e2b\u0e25\u0e14';
   }
 
   function doImportFile(file) {
@@ -304,7 +347,7 @@
   setTimeout(wire, 2000);
   setTimeout(wire, 4000);
   (function loadExtras() {
-    ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js'].forEach(function (src) {
+    ['pack-orders.js', 'pack-sync.js', 'pack-alert.js', 'pack-evidence.js'].forEach(function (src) {
       if (document.querySelector('script[src="' + src + '"]')) return;
       var s = document.createElement('script');
       s.src = src;
