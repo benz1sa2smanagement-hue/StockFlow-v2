@@ -3,15 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#F0F4FA">
 <title>StockFlow</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  var url = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
+  fetch(url, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
+    html = html.replace(
+      '<script src="barcode-edit.js"><\/script>',
+      '<script src="barcode-edit.js"><\/script>\n<script src="product-image.js"><\/script>\n<script src="pack-wrong-guide.js"><\/script>'
+    );
+    document.open();
+    document.write(html);
+    document.close();
+  }).catch(function (e) {
+    document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">\u0e42\u0e2b\u0e25\u0e14\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49: ' + e + '</p>';
+  });
+})();
+</script>
 </head>
 <body>
-<!-- NOTE: full index restored via partial - use raw file -->
-<script>
-// This was a mistake path - will fix
-</script>
+<p style="padding:24px;font-family:Sarabun,sans-serif;color:#666">\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14 StockFlow\u2026</p>
 </body>
 </html>
