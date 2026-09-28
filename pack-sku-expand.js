@@ -1,44 +1,87 @@
 /**
- * Expand BigSeller multi-pack SKUs (KLM-3PACK → single pack × 3)
+ * Generic multi-pack expand for ALL brands:
+ * KLM-3PACK, PULL-2PACK, ANY-6BOX → single-unit product × N
  */
 (function () {
   'use strict';
+  var DB = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-  function expandLine(line, skus) {
-    if (!line) return line;
-    var raw = String(line.unitSku || '').toUpperCase().replace(/\s+/g, '');
-    if (!raw) raw = String(line.name || '').toUpperCase().replace(/\s+/g, '');
-    raw = raw.replace(/^-+/, '').replace(/^-?\d+-/, '');
-    var m = raw.match(/^(.+?)-(\d+)(PACK|BOX)S?$/i);
-    if (!m) return line;
-    var mul = parseInt(m[2], 10) || 1;
-    if (mul <= 1) return line;
-    var base = m[1];
-    var unit = m[3].toUpperCase();
-    var tries = [base + '-1' + unit, base + '-1PACK', base + '-PACK', base];
+  function wsKey() { return sessionStorage.getItem('sf_session_ws') || ''; }
+  function roomId() { return localStorage.getItem('sf_room_' + wsKey()) || 'WH_A'; }
+
+  function getSkus() {
+    return new Promise(function (resolve) {
+      var ws = wsKey();
+      if (!ws) { resolve({}); return; }
+      fetch(DB + '/ws_' + ws + '/rooms/' + roomId() + '/skus.json', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { resolve(d || {}); })
+        .catch(function () { resolve({}); });
+    });
+  }
+
+  function norm(s) {
+    return String(s || '').trim().toUpperCase().replace(/\s+/g, '').replace(/^-+/, '').replace(/^-?\d+-/, '');
+  }
+
+  function parseMulti(raw) {
+    var su = norm(raw);
+    var m = su.match(/^(.+?)-(\d+)(PACK|BOX|PCS|PIECE|UNIT)S?$/i);
+    if (m) {
+      return {
+        mul: parseInt(m[2], 10) || 1,
+        base: m[1],
+        unit: m[3].toUpperCase(),
+        tries: [m[1] + '-1' + m[3].toUpperCase(), m[1] + '-1PACK', m[1] + '-PACK', m[1] + '1PACK', m[1], su]
+      };
+    }
+    m = su.match(/^([A-Z]+)(\d+)(PACK|BOX)S?$/i);
+    if (m) {
+      return {
+        mul: parseInt(m[2], 10) || 1,
+        base: m[1],
+        unit: m[3].toUpperCase(),
+        tries: [m[1] + '-1' + m[3].toUpperCase(), m[1] + '-1PACK', m[1], su]
+      };
+    }
+    return { mul: 1, base: su, unit: 'PACK', tries: [su] };
+  }
+
+  function findProduct(tries, skus) {
     var keys = Object.keys(skus || {});
     for (var t = 0; t < tries.length; t++) {
       var su = tries[t];
+      if (!su) continue;
+      if (skus[su]) return { id: su, s: skus[su] };
       for (var i = 0; i < keys.length; i++) {
         var id = keys[i];
         var s = skus[id] || {};
-        var cands = [s.unitSku, s.sku, id].map(function (x) {
-          return String(x || '').toUpperCase().replace(/\s+/g, '');
-        });
-        if (cands.indexOf(su) >= 0 || skus[su]) {
-          var sid = skus[su] ? su : id;
-          var ss = skus[sid] || s;
-          return {
-            skuId: sid,
-            name: ss.name || sid,
-            qty: (parseInt(line.qty, 10) || 1) * mul,
-            unitSku: su,
-            barcode: ss.barcode || line.barcode || ''
-          };
+        var cands = [s.unitSku, s.sku, id].map(norm);
+        if (cands.indexOf(su) >= 0) return { id: id, s: s };
+        for (var c = 0; c < cands.length; c++) {
+          if (!cands[c] || cands[c].length < 2) continue;
+          if (cands[c] === su || cands[c].indexOf(su + '-') === 0 || su.indexOf(cands[c] + '-') === 0) {
+            return { id: id, s: s };
+          }
         }
       }
     }
-    return line;
+    return null;
+  }
+
+  function expandLine(line, skus) {
+    if (!line) return line;
+    var src = line.unitSku || line.name || line.skuId || '';
+    var parsed = parseMulti(src);
+    var hit = findProduct(parsed.tries, skus);
+    if (!hit) return line;
+    return {
+      skuId: hit.id,
+      name: hit.s.name || hit.id,
+      qty: (parseInt(line.qty, 10) || 1) * (parsed.mul > 1 ? parsed.mul : 1),
+      unitSku: hit.s.unitSku || parsed.tries[0],
+      barcode: hit.s.barcode || line.barcode || ''
+    };
   }
 
   function expandOrder(order, skus) {
@@ -54,45 +97,45 @@
     return order;
   }
 
-  function getSkus() {
-    return new Promise(function (resolve) {
-      var ws = sessionStorage.getItem('sf_session_ws') || '';
-      var room = localStorage.getItem('sf_room_' + ws) || 'WH_A';
-      if (!ws) { resolve({}); return; }
-      var url = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app/ws_' +
-        ws + '/rooms/' + room + '/skus.json';
-      fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); })
-        .then(function (d) { resolve(d || {}); })
-        .catch(function () { resolve({}); });
-    });
-  }
-
   function patch() {
     if (typeof window.__bsSaveOrders !== 'function') return false;
-    if (window.__bsSaveOrders._exp) return true;
-    var origSave = window.__bsSaveOrders;
+    if (window.__bsSaveOrders._genExp) return true;
+    var orig = window.__bsSaveOrders;
     window.__bsSaveOrders = function (orders) {
       getSkus().then(function (skus) {
         (orders || []).forEach(function (o) { expandOrder(o, skus); });
-        origSave(orders);
+        orig(orders);
       });
       return (orders || []).length;
     };
-    window.__bsSaveOrders._exp = true;
+    window.__bsSaveOrders._genExp = true;
 
-    if (typeof window.__bsFindOrder === 'function' && !window.__bsFindOrder._exp) {
-      var origFind = window.__bsFindOrder;
-      window.__bsFindOrder = function (code) {
-        var ord = origFind(code);
-        return ord;
+    if (typeof window.__bsTryLoadOrder === 'function' && !window.__bsTryLoadOrder._genExp) {
+      var origTry = window.__bsTryLoadOrder;
+      window.__bsTryLoadOrder = function (v, silent) {
+        var ord = typeof window.__bsFindOrder === 'function' ? window.__bsFindOrder(v) : null;
+        if (!ord) return origTry(v, silent);
+        getSkus().then(function (skus) {
+          expandOrder(ord, skus);
+          try {
+            var store = JSON.parse(localStorage.getItem('sf_bs_orders_v1') || '{}');
+            Object.keys(store).forEach(function (k) {
+              if (store[k] && (store[k].id === ord.id || store[k].track === ord.track)) store[k] = ord;
+            });
+            localStorage.setItem('sf_bs_orders_v1', JSON.stringify(store));
+          } catch (e) {}
+          if (typeof window.__packLoadLines === 'function') window.__packLoadLines(ord);
+          else origTry(v, silent);
+        });
+        return true;
       };
-      window.__bsFindOrder._exp = true;
+      window.__bsTryLoadOrder._genExp = true;
     }
     return true;
   }
 
   var n = 0;
   var iv = setInterval(function () {
-    if (patch() || ++n > 50) clearInterval(iv);
+    if (patch() || ++n > 60) clearInterval(iv);
   }, 200);
 })();

@@ -1,4 +1,4 @@
-/** pack-csv entry */
+/** pack-csv entry + generic expand */
 (function () {
   function load(src, cb) {
     var s = document.createElement('script');
@@ -8,6 +8,6 @@
     document.head.appendChild(s);
   }
   load('https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@de359b3b8751c301e815a439278ac9afc4470f6d/pack-csv.js', function () {
-    load('pack-sku-expand.js?v=3');
+    load('pack-sku-expand.js?v=gen4');
   });
 })();
