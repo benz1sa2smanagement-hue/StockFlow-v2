@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         StockFlow BigSeller Bridge
 // @namespace    https://benz1sa2smanagement-hue.github.io/StockFlow-v2/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Pull orders from logged-in BigSeller tab into StockFlow via Firebase
 // @match        https://*.bigseller.com/*
 // @match        https://www.bigseller.com/*
@@ -47,11 +47,8 @@
         headers: body ? { 'Content-Type': 'application/json' } : {},
         data: body ? JSON.stringify(body) : undefined,
         onload: function (res) {
-          try {
-            resolve(res.responseText ? JSON.parse(res.responseText) : null);
-          } catch (e) {
-            resolve(null);
-          }
+          try { resolve(res.responseText ? JSON.parse(res.responseText) : null); }
+          catch (e) { resolve(null); }
         },
         onerror: function (e) { reject(e); }
       });
@@ -64,25 +61,19 @@
     var base = pathBase();
     if (!base) return;
     fbPut(base + '/bsBridge/status', {
-      onlineAt: Date.now(),
-      page: location.pathname + location.search,
-      message: msg || '',
-      href: location.href
+      onlineAt: Date.now(), page: location.pathname + location.search,
+      message: msg || '', href: location.href
     }).catch(function () {});
   }
 
-  function norm(v) {
-    return String(v || '').trim();
-  }
+  function norm(v) { return String(v || '').trim(); }
 
   function extractOrdersFromJson(data, depth) {
     depth = depth || 0;
     if (depth > 6 || data == null) return [];
     var out = [];
     if (Array.isArray(data)) {
-      data.forEach(function (item) {
-        out = out.concat(extractOrdersFromJson(item, depth + 1));
-      });
+      data.forEach(function (item) { out = out.concat(extractOrdersFromJson(item, depth + 1)); });
       return out;
     }
     if (typeof data !== 'object') return out;
@@ -109,7 +100,10 @@
           id: String(id),
           track: norm(data.trackingNumber || data.tracking_number || data.trackingNo || ''),
           packageId: norm(data.packageId || data.package_id || data.bsCode || ''),
-          platform: norm(data.platform || data.channel || data.shopName || data.marketplace || ''),
+          platform: norm(data.platform || data.channel || data.shopName || data.marketplace || data.site || ''),
+          printStatus: norm(data.printStatus || data.labelPrintStatus || data.print_status || data.isPrint || data.printed || ''),
+          shipStatus: norm(data.shippingStatus || data.shipStatus || data.packageStatus || data.orderStatus || data.statusName || data.status || ''),
+          printedAt: data.printTime || data.printedAt || data.labelPrintTime || null,
           lines: lines
         });
       }
@@ -133,10 +127,56 @@
     return Object.keys(map).map(function (k) { return map[k]; });
   }
 
+  function matchPlatform(orderPlat, allowed) {
+    if (!allowed || !allowed.length) return true;
+    var p = String(orderPlat || '').toLowerCase();
+    var hit = false, other = false;
+    allowed.forEach(function (a) {
+      var x = String(a).toLowerCase();
+      if (x === 'other') other = true;
+      else if (p.indexOf(x) >= 0) hit = true;
+    });
+    if (hit) return true;
+    if (other) {
+      var known = ['shopee', 'lazada', 'tiktok', 'facebook', 'fb'];
+      return !known.some(function (k) { return p.indexOf(k) >= 0; });
+    }
+    if (!p) return true;
+    return false;
+  }
+
+  function matchPrintFilter(order, filter) {
+    filter = filter || 'all';
+    if (filter === 'all') return true;
+    var pr = String(order.printStatus || '').toLowerCase();
+    var sh = String(order.shipStatus || '').toLowerCase();
+    var printed = /print|printed|1|true|yes|done|already/.test(pr) || !!order.printedAt || !!order.track;
+    var shipped = /ship|dispatch|handover|picked|in_transit|delivered|\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07|\u0e2a\u0e48\u0e07\u0e2d\u0e2d\u0e01/.test(sh);
+    var notPrinted = /unprint|not.?print|0|false|no|\u0e23\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c|\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48/.test(pr);
+    if (filter === 'printed_not_shipped') {
+      if (shipped) return false;
+      if (printed || order.track) return true;
+      if (!pr && !sh) return true;
+      return false;
+    }
+    if (filter === 'printed') return printed || !!order.track || (!pr && !notPrinted);
+    if (filter === 'not_printed') return notPrinted || (!printed && !order.track);
+    return true;
+  }
+
+  function applyPullFilters(list, req) {
+    req = req || {};
+    var plats = req.platforms || [];
+    var pf = req.printFilter || 'all';
+    return (list || []).filter(function (o) {
+      return matchPlatform(o.platform, plats) && matchPrintFilter(o, pf);
+    });
+  }
+
   function pushOrders(orderList, pullAt) {
     var base = pathBase();
     if (!base) {
-      alert('Set Workspace in StockFlow Bridge first (floating button on this page).');
+      alert('Set Workspace in StockFlow Bridge first.');
       return Promise.resolve();
     }
     var payload = {};
@@ -144,32 +184,25 @@
       var id = String(o.id || o.track || o.packageId).toUpperCase().replace(/\s+/g, '');
       if (!id) return;
       payload[id] = {
-        id: o.id || '',
-        track: o.track || '',
-        packageId: o.packageId || '',
-        platform: o.platform || '',
-        lines: o.lines,
-        updatedAt: Date.now(),
-        source: 'bigseller-bridge'
+        id: o.id || '', track: o.track || '', packageId: o.packageId || '',
+        platform: o.platform || '', lines: o.lines,
+        updatedAt: Date.now(), source: 'bigseller-bridge'
       };
     });
     var count = Object.keys(payload).length;
     return fbPut(base + '/bsOrders', payload).then(function () {
       return fbPut(base + '/bsBridge/lastPull', {
-        at: Date.now(),
-        ok: count > 0,
-        count: count,
-        pullRequestAt: pullAt || 0,
-        error: count ? '' : 'No order structure found. Open To Pack page, refresh, wait for list to load, then pull again.'
+        at: Date.now(), ok: count > 0, count: count, pullRequestAt: pullAt || 0,
+        error: count ? '' : 'No matching orders. Open printed / to-pack list, refresh, then pull again.'
       });
     }).then(function () {
       heartbeat(count ? ('sent ' + count + ' orders') : 'no orders');
-      showBadge(count ? ('Sent to StockFlow: ' + count) : 'No orders on this page');
+      showBadge(count ? ('Sent: ' + count) : 'No matching orders');
     });
   }
 
-  function doPull(pullAt) {
-    var list = mergeUnique(captured);
+  function doPull(pullAt, req) {
+    var list = applyPullFilters(mergeUnique(captured), req || {});
     return pushOrders(list, pullAt);
   }
 
@@ -185,7 +218,7 @@
               var found = extractOrdersFromJson(data);
               if (found.length) {
                 captured = mergeUnique(captured.concat(found));
-                heartbeat('cached orders ' + captured.length);
+                heartbeat('cached ' + captured.length);
               }
             }).catch(function () {});
           } catch (e) {}
@@ -207,11 +240,10 @@
             var t = this.responseText;
             if (!t || t.length < 20 || t.length > 5000000) return;
             if (t[0] !== '{' && t[0] !== '[') return;
-            var data = JSON.parse(t);
-            var found = extractOrdersFromJson(data);
+            var found = extractOrdersFromJson(JSON.parse(t));
             if (found.length) {
               captured = mergeUnique(captured.concat(found));
-              heartbeat('cached orders ' + captured.length);
+              heartbeat('cached ' + captured.length);
             }
           } catch (e) {}
         });
@@ -228,8 +260,8 @@
       if (req.at <= lastPullHandled) return;
       if (req.status === 'done') return;
       lastPullHandled = req.at;
-      heartbeat('pulling for StockFlow...');
-      doPull(req.at).then(function () {
+      heartbeat('pulling...');
+      doPull(req.at, req).then(function () {
         return fbPut(base + '/bsBridge/pullRequest', Object.assign({}, req, { status: 'done', doneAt: Date.now() }));
       });
     }).catch(function () {});
@@ -239,21 +271,18 @@
     if (document.getElementById('sf-bs-float')) return;
     var el = document.createElement('div');
     el.id = 'sf-bs-float';
-    el.style.cssText = 'position:fixed;z-index:2147483646;right:16px;bottom:16px;background:#0C0E12;color:#fff;' +
-      'padding:12px 14px;border-radius:14px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:280px';
+    el.style.cssText = 'position:fixed;z-index:2147483646;right:16px;bottom:16px;background:#0C0E12;color:#fff;padding:12px 14px;border-radius:14px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:280px';
     el.innerHTML =
       '<div style="font-weight:700;margin-bottom:6px">StockFlow Bridge</div>' +
       '<div id="sf-bs-msg" style="opacity:.85;font-size:12px;margin-bottom:8px">connecting...</div>' +
       '<button id="sf-bs-send" style="width:100%;padding:10px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">Send orders to StockFlow</button>' +
       '<button id="sf-bs-cfg" style="width:100%;margin-top:6px;padding:8px;border:0;border-radius:10px;background:#333;color:#fff;cursor:pointer">Set Workspace</button>';
     document.body.appendChild(el);
-    document.getElementById('sf-bs-send').addEventListener('click', function () {
-      doPull(Date.now());
-    });
+    document.getElementById('sf-bs-send').addEventListener('click', function () { doPull(Date.now(), {}); });
     document.getElementById('sf-bs-cfg').addEventListener('click', function () {
-      var ws = prompt('Workspace key (same as StockFlow login)', getCfg().wsKey || '');
+      var ws = prompt('Workspace key', getCfg().wsKey || '');
       if (ws == null) return;
-      var room = prompt('Room / warehouse', getCfg().room || 'WH_A');
+      var room = prompt('Room', getCfg().room || 'WH_A');
       setCfg(String(ws).trim(), String(room || 'WH_A').trim());
       heartbeat('configured');
       showBadge('Workspace saved');
@@ -269,9 +298,8 @@
   ensureFloatingUi();
   heartbeat('ready');
   showBadge(getCfg().wsKey ? ('WS: ' + getCfg().wsKey) : 'Set Workspace first');
-
   setInterval(function () {
-    heartbeat(captured.length ? ('cached ' + captured.length + ' orders') : 'open To Pack page');
+    heartbeat(captured.length ? ('cached ' + captured.length) : 'open To Pack / printed list');
     pollBridge();
   }, 4000);
 })();
