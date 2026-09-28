@@ -1,10 +1,56 @@
 /**
- * Mobile convenience + watch-only mode for Pack tab
+ * Mobile convenience + watch-only mode + bottom nav scroll clearance
  */
 (function () {
   'use strict';
   var STYLE_ID = 'pack-mobile-style';
+  var PAD_STYLE_ID = 'pack-scroll-pad-style';
   var WATCH_KEY = 'sf_pack_watch_only';
+
+  function navHeight() {
+    var nav = document.querySelector('.nav') || document.querySelector('nav') || document.getElementById('nav');
+    if (nav) {
+      var h = nav.getBoundingClientRect().height;
+      if (h > 40) return Math.ceil(h);
+    }
+    // fallback: CSS var --nav (76) + safe area
+    var cs = getComputedStyle(document.documentElement);
+    var base = parseInt(cs.getPropertyValue('--nav'), 10) || 76;
+    var sb = 0;
+    try {
+      var probe = document.createElement('div');
+      probe.style.cssText = 'position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px)';
+      document.body.appendChild(probe);
+      sb = parseInt(getComputedStyle(probe).paddingBottom, 10) || 0;
+      probe.remove();
+    } catch (e) {}
+    return base + sb;
+  }
+
+  function ensureScrollPad() {
+    var pad = navHeight() + 48; // nav + breathing room
+    var s = document.getElementById(PAD_STYLE_ID);
+    if (!s) {
+      s = document.createElement('style');
+      s.id = PAD_STYLE_ID;
+      document.head.appendChild(s);
+    }
+    s.textContent =
+      '.page,.page.active,#page-pack{' +
+      'padding-bottom:' + pad + 'px !important;' +
+      'scroll-padding-bottom:' + pad + 'px !important;' +
+      '}' +
+      '#page-pack > *:last-child{margin-bottom:24px !important;}' +
+      '#pack-history-panel,#pack-map-panel,#pack-queue-panel,' +
+      '#page-pack .card:last-of-type{margin-bottom:20px !important;}';
+
+    // also set inline on active pack page for stubborn browsers
+    var page = document.getElementById('page-pack');
+    if (page) {
+      page.style.paddingBottom = pad + 'px';
+      page.style.scrollPaddingBottom = pad + 'px';
+    }
+  }
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -54,6 +100,7 @@
 
   function wire() {
     ensureStyle();
+    ensureScrollPad();
     var page = document.getElementById('page-pack');
     if (!page) return;
     ensureWatchToggle();
@@ -63,6 +110,22 @@
     var btn = e.target && e.target.closest && e.target.closest('.ni[data-page="pack"]');
     if (btn) setTimeout(wire, 200);
   });
-  setTimeout(wire, 1000);
+
+  window.addEventListener('resize', function () {
+    ensureScrollPad();
+  });
+  window.addEventListener('orientationchange', function () {
+    setTimeout(ensureScrollPad, 200);
+  });
+
+  setTimeout(wire, 400);
+  setTimeout(wire, 1200);
   setTimeout(wire, 3000);
+  // re-apply after late panels inject
+  setInterval(function () {
+    var page = document.getElementById('page-pack');
+    if (page && (page.classList.contains('active') || page.offsetParent !== null)) {
+      ensureScrollPad();
+    }
+  }, 2500);
 })();
