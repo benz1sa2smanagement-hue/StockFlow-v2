@@ -157,18 +157,25 @@
 
   function ensureCsvUi() {
     var page = document.getElementById('page-pack');
-    if (!page || document.getElementById('pack-csv-file')) return;
-    var card = page.querySelector('.card');
-    if (!card) return;
+    if (!page) return;
+    if (document.getElementById('pack-csv-file')) return;
+
     var wrap = document.createElement('div');
+    wrap.className = 'card';
+    wrap.id = 'pack-csv-card';
+    wrap.style.cssText = 'padding:14px 16px;margin-bottom:12px;border:2px solid var(--gold-line)';
     wrap.innerHTML =
+      '<div style="font-size:13px;font-weight:600;margin-bottom:8px">\u0e2d\u0e31\u0e1b\u0e44\u0e1f\u0e25\u0e4c\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c BigSeller</div>' +
       '<div class="field" style="margin-bottom:8px">' +
-      '<label>\u0e44\u0e1f\u0e25\u0e4c BigSeller (CSV / Excel)</label>' +
-      '<input type="file" id="pack-csv-file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="font-size:13px;width:100%">' +
+      '<label>\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e44\u0e1f\u0e25\u0e4c CSV \u0e2b\u0e23\u0e37\u0e2d Excel</label>' +
+      '<input type="file" id="pack-csv-file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="font-size:14px;width:100%;padding:10px;border:1px dashed var(--gold-line);border-radius:10px;background:var(--bg);cursor:pointer">' +
       '</div>' +
-      '<div id="pack-csv-status" style="font-size:11px;color:var(--ink3);margin-bottom:8px">\u0e2d\u0e31\u0e1b\u0e44\u0e1f\u0e25\u0e4c\u0e41\u0e25\u0e49\u0e27\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e44\u0e14\u0e49</div>' +
-      '<div id="pack-csv-orders" style="display:none;margin-bottom:12px"></div>';
-    card.insertBefore(wrap, card.firstChild);
+      '<div id="pack-csv-status" style="font-size:12px;color:var(--ink3)">\u0e2d\u0e31\u0e1b\u0e41\u0e25\u0e49\u0e27\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e40\u0e23\u0e34\u0e48\u0e21\u0e41\u0e1e\u0e47\u0e01</div>' +
+      '<div id="pack-csv-orders" style="display:none;margin-bottom:8px;margin-top:8px"></div>';
+
+    var first = page.firstChild;
+    if (first) page.insertBefore(wrap, first);
+    else page.appendChild(wrap);
   }
 
   function applyOrderRows(rows, map, orderId) {
@@ -342,10 +349,21 @@
   }
   document.addEventListener('click', function (e) {
     var btn = e.target.closest && e.target.closest('.ni[data-page="pack"]');
-    if (btn) setTimeout(wire, 200);
+    if (btn) {
+      setTimeout(wire, 100);
+      setTimeout(wire, 400);
+      setTimeout(wire, 1000);
+    }
   });
-  setTimeout(wire, 2000);
-  setTimeout(wire, 4000);
+  setTimeout(wire, 1500);
+  setTimeout(wire, 3000);
+  setTimeout(wire, 5000);
+  setInterval(function () {
+    var page = document.getElementById('page-pack');
+    if (page && page.classList.contains('active') && !document.getElementById('pack-csv-file')) {
+      wire();
+    }
+  }, 1500);
   (function loadExtras() {
     ['pack-orders.js', 'pack-sync.js', 'pack-alert.js', 'pack-evidence.js'].forEach(function (src) {
       if (document.querySelector('script[src="' + src + '"]')) return;
