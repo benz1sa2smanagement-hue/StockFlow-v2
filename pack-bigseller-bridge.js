@@ -1,5 +1,5 @@
 /**
- * BigSeller bridge UI + platform / print filters
+ * BigSeller bridge UI + platform / print / day filters
  */
 (function () {
   'use strict';
@@ -28,8 +28,29 @@
       .then(function (r) { return r.json(); });
   }
 
+  function daySelectHtml() {
+    return (
+      '<div style="font-size:11px;color:var(--ink3);margin:10px 0 6px">\u0e0a\u0e48\u0e27\u0e07\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32</div>' +
+      '<select id="pack-bs-day-range" style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line2);font-size:12px;background:#fff">' +
+      '<option value="0" selected>\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49\u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19 (\u0e04\u0e48\u0e32\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19)</option>' +
+      '<option value="1">\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07 1 \u0e27\u0e31\u0e19</option>' +
+      '<option value="2">\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07 2 \u0e27\u0e31\u0e19</option>' +
+      '<option value="3">\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07 3 \u0e27\u0e31\u0e19</option>' +
+      '<option value="5">\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07 5 \u0e27\u0e31\u0e19</option>' +
+      '<option value="7">\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07 7 \u0e27\u0e31\u0e19</option></select>'
+    );
+  }
+
   function ensureFilters() {
-    if (document.getElementById('pack-bs-filters')) return;
+    var existing = document.getElementById('pack-bs-filters');
+    if (existing) {
+      if (!document.getElementById('pack-bs-day-range')) {
+        var d = document.createElement('div');
+        d.innerHTML = daySelectHtml();
+        existing.appendChild(d);
+      }
+      return;
+    }
     var st = document.getElementById('pack-bs-status');
     if (!st || !st.parentNode) return;
     var wrap = document.createElement('div');
@@ -50,7 +71,8 @@
       '<option value="printed">\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14</option>' +
       '<option value="not_printed">\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32</option>' +
       '<option value="all">\u0e17\u0e38\u0e01\u0e2a\u0e16\u0e32\u0e19\u0e30\u0e17\u0e35\u0e48\u0e14\u0e36\u0e07\u0e44\u0e14\u0e49</option></select>' +
-      '<div style="font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.35">\u0e40\u0e1b\u0e49\u0e32\u0e2b\u0e21\u0e32\u0e22: \u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27\u0e41\u0e15\u0e48\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e22\u0e34\u0e07\u0e2d\u0e2d\u0e01\u0e02\u0e19\u0e2a\u0e48\u0e07 = \u0e04\u0e34\u0e27\u0e41\u0e1e\u0e47\u0e01\u0e08\u0e23\u0e34\u0e07</div>';
+      daySelectHtml() +
+      '<div style="font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.35">\u0e04\u0e48\u0e32\u0e40\u0e23\u0e34\u0e48\u0e21\u0e15\u0e49\u0e19: \u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49 \u00b7 \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e2a\u0e48\u0e07\u0e2d\u0e2d\u0e01\u0e02\u0e19\u0e2a\u0e48\u0e07</div>';
     st.parentNode.insertBefore(wrap, st.nextSibling);
   }
 
@@ -80,7 +102,7 @@
     document.getElementById('pack-bs-install').addEventListener('click', function () {
       try { navigator.clipboard.writeText(SCRIPT_URL); } catch (e) {}
       window.open(SCRIPT_URL, '_blank');
-      toast('\u0e40\u0e1b\u0e34\u0e14\u0e25\u0e34\u0e07\u0e01\u0e4c\u0e2a\u0e04\u0e23\u0e34\u0e1b\u0e15\u0e4c \u2014 \u0e01\u0e14 Install \u0e41\u0e25\u0e49\u0e27');
+      toast('\u0e40\u0e1b\u0e34\u0e14\u0e25\u0e34\u0e07\u0e01\u0e4c\u0e2a\u0e04\u0e23\u0e34\u0e1b\u0e15\u0e4c \u2014 \u0e01\u0e14 Install / \u0e2d\u0e31\u0e1b\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e0a\u0e31\u0e19 v1.3');
     });
     document.getElementById('pack-bs-open').addEventListener('click', function () {
       window.open('https://www.bigseller.com/', '_blank');
@@ -96,24 +118,28 @@
     var st = document.getElementById('pack-bs-status');
     if (st) {
       st.style.borderColor = '#fbbf24';
-      st.textContent = '\u0e2a\u0e48\u0e07\u0e04\u0e33\u0e02\u0e2d\u0e14\u0e36\u0e07\u2026 \u0e40\u0e1b\u0e34\u0e14 BigSeller \u0e04\u0e49\u0e32\u0e07\u0e44\u0e27\u0e49 + \u0e2b\u0e19\u0e49\u0e32\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23';
+      st.textContent = '\u0e2a\u0e48\u0e07\u0e04\u0e33\u0e02\u0e2d\u0e14\u0e36\u0e07\u2026 \u0e40\u0e1b\u0e34\u0e14 BigSeller \u0e04\u0e49\u0e32\u0e07\u0e44\u0e27\u0e49';
     }
     var plats = [];
     document.querySelectorAll('.pack-bs-plat:checked').forEach(function (c) { plats.push(c.value); });
     var printFilter = (document.getElementById('pack-bs-print-filter') || {}).value || 'printed_not_shipped';
+    var dayRange = parseInt((document.getElementById('pack-bs-day-range') || {}).value, 10);
+    if (isNaN(dayRange) || dayRange < 0) dayRange = 0;
+    if (dayRange > 7) dayRange = 7;
     var payload = {
       at: Date.now(),
       by: sessionStorage.getItem('sf_session_user') || 'pc',
       status: 'pending',
       platforms: plats,
-      printFilter: printFilter
+      printFilter: printFilter,
+      dayRange: dayRange
     };
     api(p + '/pullRequest', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).then(function () {
-      toast('\u0e2a\u0e48\u0e07\u0e04\u0e33\u0e02\u0e2d\u0e14\u0e36\u0e07\u0e41\u0e25\u0e49\u0e27');
+      toast('\u0e2a\u0e48\u0e07\u0e04\u0e33\u0e02\u0e2d\u0e14\u0e36\u0e07\u0e41\u0e25\u0e49\u0e27' + (dayRange === 0 ? ' (\u0e27\u0e31\u0e19\u0e19\u0e35\u0e49)' : ' (\u0e22\u0e49\u0e2d\u0e19 ' + dayRange + ' \u0e27\u0e31\u0e19)'));
       pollResult(payload.at);
     }).catch(function (e) {
       toast('\u0e2a\u0e48\u0e07\u0e04\u0e33\u0e02\u0e2d\u0e25\u0e49\u0e21: ' + (e.message || e));
@@ -160,7 +186,7 @@
             clearInterval(iv);
             if (st) {
               st.style.borderColor = '#fca5a5';
-              st.textContent = '\u0e2b\u0e21\u0e14\u0e40\u0e27\u0e25\u0e32 \u2014 \u0e15\u0e23\u0e27\u0e08\u0e41\u0e17\u0e47\u0e1a BigSeller + userscript v1.2';
+              st.textContent = '\u0e2b\u0e21\u0e14\u0e40\u0e27\u0e25\u0e32 \u2014 \u0e15\u0e23\u0e27\u0e08 userscript v1.3 + \u0e41\u0e17\u0e47\u0e1a BigSeller';
             }
           }
         }).catch(function () {});
@@ -180,7 +206,7 @@
         st.textContent = '\u2713 \u0e2a\u0e30\u0e1e\u0e32\u0e19\u0e1e\u0e23\u0e49\u0e2d\u0e21 \u00b7 ' + (status.message || 'BigSeller');
       } else {
         st.style.borderColor = '#e5e7eb';
-        st.textContent = '\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21 \u2014 \u0e15\u0e34\u0e14\u0e15\u0e31\u0e49\u0e07\u0e2a\u0e04\u0e23\u0e34\u0e1b\u0e15\u0e4c + \u0e40\u0e1b\u0e34\u0e14 BigSeller';
+        st.textContent = '\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21 \u2014 \u0e15\u0e34\u0e14\u0e15\u0e31\u0e49\u0e07\u0e2a\u0e04\u0e23\u0e34\u0e1b\u0e15\u0e4c v1.3 + \u0e40\u0e1b\u0e34\u0e14 BigSeller';
       }
     }).catch(function () {});
   }
