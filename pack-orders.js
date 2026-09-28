@@ -1,7 +1,7 @@
 /**
  * BigSeller order store + label scan → load pack product lines
  * - Scan into pack-order OR pack-scan loads order items automatically
- * - No mouse click required after CSV upload
+ * - After packing (or when all done), scan next order barcode to switch without button
  */
 (function () {
   'use strict';
@@ -202,13 +202,6 @@
       }
     }
 
-    var statusEl = document.getElementById('pack-csv-status');
-    if (statusEl && added > 0) {
-      statusEl.style.color = 'var(--ok, #15803d)';
-      statusEl.textContent = '\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c ' + (order.id || order.track || '') + ' \u00b7 ' + names.slice(0, 3).join(', ') +
-        (names.length > 3 ? ' \u2026' : '');
-    }
-
     if (added > 0) {
       toast('\u0e42\u0e2b\u0e25\u0e14 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23: ' + names.slice(0, 2).join(', ') + (names.length > 2 ? '\u2026' : ''));
     } else {
@@ -224,6 +217,7 @@
       toast('\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e21\u0e35\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32');
       return false;
     }
+    lastTry = { v: norm(order.id || order.track || ''), t: Date.now() };
     if (typeof window.__packExpandOrder === 'function') {
       window.__packExpandOrder(order).then(function (o) {
         loadLinesIntoPack(o || order);
@@ -232,13 +226,6 @@
       });
       return true;
     }
-    if (typeof window.__packLoadLines === 'function' && window.__packLoadLines !== loadLinesIntoPack) {
-      try {
-        var ok = window.__packLoadLines(order);
-        focusScanSoon();
-        return !!ok;
-      } catch (e) {}
-    }
     return loadLinesIntoPack(order) > 0;
   }
 
@@ -246,7 +233,7 @@
     v = String(v || '').trim();
     if (!v) return false;
     var now = Date.now();
-    if (lastTry.v === v && now - lastTry.t < 600) return true;
+    if (lastTry.v === norm(v) && now - lastTry.t < 600) return true;
 
     var store = loadStore();
     var nKeys = Object.keys(store).length;
@@ -259,11 +246,11 @@
     if (!ord) {
       if (!silent) {
         var short = v.length > 40 ? v.slice(0, 40) + '\u2026' : v;
-        toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e44\u0e1f\u0e25\u0e4c: ' + short + ' (\u0e21\u0e35 ' + nKeys + ' \u0e04\u0e35\u0e22\u0e4c)');
+        toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e44\u0e1f\u0e25\u0e4c: ' + short);
       }
       return false;
     }
-    lastTry = { v: v, t: now };
+    lastTry = { v: norm(v), t: now };
     return activateOrder(ord);
   }
 
@@ -284,6 +271,49 @@
   window.__bsClearOrders = function () { localStorage.removeItem(KEY); };
   window.__bsFocusScan = focusScan;
   window.__bsFocusOrder = focusOrder;
+
+  function currentOrderId() {
+    var o = document.getElementById('pack-order');
+    return norm(o && o.value || '');
+  }
+
+  function linesAllDone() {
+    var box = document.getElementById('pack-lines');
+    if (!box || !box.children.length) return true;
+    var rows = box.querySelectorAll('.row-q');
+    if (!rows.length) return !box.children.length;
+    for (var i = 0; i < rows.length; i++) {
+      var parts = (rows[i].textContent || '').split('/');
+      var a = parseInt(parts[0], 10) || 0;
+      var b = parseInt(parts[1], 10) || 0;
+      if (b > 0 && a < b) return false;
+    }
+    return true;
+  }
+
+  function lineCount() {
+    var box = document.getElementById('pack-lines');
+    return box ? box.children.length : 0;
+  }
+
+  /** Auto-switch order when scanning order barcode (no button needed) */
+  function handleScanValue(v, silent) {
+    v = String(v || '').trim();
+    if (!v || v.length < 6) return false;
+    var ord = findOrder(v);
+    if (!ord) return false;
+
+    var cur = currentOrderId();
+    var oid = norm(ord.id || ord.track || ord.packageId || '');
+    var same = cur && oid && (cur === oid || cur.indexOf(oid) >= 0 || oid.indexOf(cur) >= 0);
+
+    // Same order still packing → leave for product barcode verify
+    if (same && lineCount() > 0 && !linesAllDone()) {
+      return false;
+    }
+
+    return activateOrder(ord);
+  }
 
   function onOrderValue(v, fromEnter) {
     v = String(v || '').trim();
@@ -320,8 +350,8 @@
 
   function bindScanInput() {
     var input = document.getElementById('pack-scan');
-    if (!input || input.getAttribute('data-bs-bound-v3')) return;
-    input.setAttribute('data-bs-bound-v3', '1');
+    if (!input || input.getAttribute('data-bs-bound-v4')) return;
+    input.setAttribute('data-bs-bound-v4', '1');
     input.setAttribute('lang', 'en');
     input.setAttribute('spellcheck', 'false');
     input.setAttribute('autocomplete', 'off');
@@ -331,14 +361,9 @@
       scanTimer = setTimeout(function () {
         var v = (input.value || '').trim();
         if (v.length < 6) return;
-        var box = document.getElementById('pack-lines');
-        var lineCount = box ? box.children.length : 0;
-        if (lineCount === 0) {
-          if (tryFromScan(v, true)) {
-            input.value = '';
-            var oe = document.getElementById('pack-order');
-            if (oe && !oe.value) oe.value = v;
-          }
+        if (handleScanValue(v, true)) {
+          input.value = '';
+          setTimeout(focusScan, 80);
         }
       }, 100);
     });
@@ -347,14 +372,11 @@
       if (e.key !== 'Enter') return;
       var v = (input.value || '').trim();
       if (!v) return;
-      var box = document.getElementById('pack-lines');
-      var lineCount = box ? box.children.length : 0;
-      if (lineCount === 0) {
-        if (tryFromScan(v, false)) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          input.value = '';
-        }
+      if (handleScanValue(v, false)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        input.value = '';
+        setTimeout(focusScan, 80);
       }
     }, true);
   }
@@ -369,15 +391,12 @@
       return;
     }
     if (input.id === 'pack-scan') {
-      var box = document.getElementById('pack-lines');
-      var lineCount = box ? box.children.length : 0;
       var v = (input.value || '').trim();
-      if (lineCount === 0 && v) {
-        if (tryFromScan(v, false)) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          input.value = '';
-        }
+      if (v && handleScanValue(v, false)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        input.value = '';
+        setTimeout(focusScan, 80);
       }
     }
   }, true);
@@ -396,8 +415,8 @@
                ae.id === 'pack-add-sku' || ae.id === 'pack-add-qty' || ae.id === 'pack-session-id')) return;
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'BUTTON')) return;
     var box = document.getElementById('pack-lines');
-    var lineCount = box ? box.children.length : 0;
-    if (lineCount === 0) focusOrder();
+    var n = box ? box.children.length : 0;
+    if (n === 0) focusOrder();
     else focusScan();
   }, 500);
 
