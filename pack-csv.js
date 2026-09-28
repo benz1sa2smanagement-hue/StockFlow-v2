@@ -1,6 +1,5 @@
 /**
  * BigSeller CSV / Excel import for Pack tab
- * Always shows a clear upload control on the Pack page.
  */
 (function () {
   'use strict';
@@ -29,23 +28,14 @@
     if (!target) return;
     try {
       target.removeAttribute('readonly');
-      target.setAttribute('lang', 'en');
-      target.setAttribute('spellcheck', 'false');
-      target.setAttribute('autocomplete', 'off');
-      target.setAttribute('inputmode', 'text');
-      if (document.activeElement && document.activeElement !== target) {
-        try { document.activeElement.blur(); } catch (e) {}
-      }
       target.focus({ preventScroll: true });
-      try { target.select(); } catch (e2) {}
-    } catch (e) {
+      try { target.select(); } catch (e) {}
+    } catch (e2) {
       try { target.focus(); } catch (e3) {}
     }
   }
   function focusScanSoon() {
-    [0, 50, 150, 300, 600, 1000, 1600].forEach(function (ms) {
-      setTimeout(hardFocusScan, ms);
-    });
+    [0, 50, 150, 300, 600, 1000, 1600].forEach(function (ms) { setTimeout(hardFocusScan, ms); });
   }
 
   function loadSkus() {
@@ -103,10 +93,7 @@
     }
     return null;
   }
-
-  function norm(s) {
-    return String(s || '').trim().toUpperCase().replace(/\s+/g, '');
-  }
+  function norm(s) { return String(s || '').trim().toUpperCase().replace(/\s+/g, ''); }
 
   function matchSku(skuV, nameV, barV) {
     var keys = Object.keys(skusCache || {});
@@ -151,11 +138,8 @@
       var oid = (map.order && row[map.order]) || '';
       var track = (map.track && row[map.track]) || '';
       var pkg = (map.packageId && row[map.packageId]) || '';
-      var key = oid || track || pkg;
-      if (!key) key = '_row_' + Math.random().toString(36).slice(2, 8);
-      if (!byId[key]) {
-        byId[key] = { id: oid || key, track: track, packageId: pkg, platform: (map.plat && row[map.plat]) || '', lines: [] };
-      }
+      var key = oid || track || pkg || ('_row_' + Math.random().toString(36).slice(2, 8));
+      if (!byId[key]) byId[key] = { id: oid || key, track: track, packageId: pkg, platform: (map.plat && row[map.plat]) || '', lines: [] };
       var skuV = map.sku ? row[map.sku] : '';
       var nameV = map.name ? row[map.name] : '';
       var barV = map.barcode ? row[map.barcode] : '';
@@ -164,39 +148,16 @@
       byId[key].lines.push({
         skuId: m ? m.id : (skuV || nameV || 'UNKNOWN'),
         name: m ? (m.s.name || m.id) : (nameV || skuV || 'unknown'),
-        qty: qty,
-        unitSku: m ? (m.s.unitSku || '') : skuV,
-        barcode: m ? (m.s.barcode || barV || '') : barV,
-        matched: !!m
+        qty: qty, unitSku: m ? (m.s.unitSku || '') : skuV,
+        barcode: m ? (m.s.barcode || barV || '') : barV, matched: !!m
       });
     });
     return Object.keys(byId).map(function (k) { return byId[k]; }).filter(function (o) { return o.lines && o.lines.length; });
   }
 
   function saveOrders(orders) {
-    var n = 0;
-    if (typeof window.__bsSaveOrders === 'function') {
-      n = window.__bsSaveOrders(orders) || orders.length;
-    } else {
-      try {
-        var KEY = 'sf_bs_orders_v1';
-        var store = JSON.parse(localStorage.getItem(KEY) || '{}');
-        orders.forEach(function (order) {
-          if (!order || !order.lines || !order.lines.length) return;
-          var keys = [];
-          [order.id, order.track, order.packageId].forEach(function (k) {
-            k = String(k || '').trim().toUpperCase().replace(/\s+/g, '');
-            if (k && keys.indexOf(k) < 0) keys.push(k);
-            var k2 = k.replace(/[^A-Z0-9]/g, '');
-            if (k2 && keys.indexOf(k2) < 0) keys.push(k2);
-          });
-          keys.forEach(function (k) { store[k] = order; });
-          n++;
-        });
-        localStorage.setItem(KEY, JSON.stringify(store));
-      } catch (e) {}
-    }
-    return n;
+    if (typeof window.__bsSaveOrders === 'function') return window.__bsSaveOrders(orders) || orders.length;
+    return orders.length;
   }
 
   function ensureCsvUi() {
@@ -209,7 +170,7 @@
     panel.style.cssText = 'padding:14px 16px;margin-bottom:12px;border:2px dashed rgba(12,14,18,.18);background:rgba(255,248,230,.95)';
     panel.innerHTML =
       '<div style="font-size:14px;font-weight:800;margin-bottom:6px">\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e08\u0e32\u0e01 BigSeller</div>' +
-      '<div style="font-size:12px;color:var(--ink3,#8A8F99);margin-bottom:10px">CSV / Excel</div>' +
+      '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">CSV / Excel</div>' +
       '<label for="pack-csv-file" style="display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:14px;background:var(--ink,#0C0E12);color:#fff;font-weight:700;cursor:pointer">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e44\u0e1f\u0e25\u0e4c CSV / Excel</label>' +
       '<input type="file" id="pack-csv-file" accept=".csv,.xlsx,.xls" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1">' +
       '<div id="pack-csv-status" style="font-size:12px;color:var(--ink3);margin-top:10px"></div>';
@@ -261,7 +222,6 @@
   }
 
   function finishImport(parsed) {
-    var statusEl = document.getElementById('pack-csv-status');
     if (!parsed.data.length) { toast('empty'); focusScanSoon(); return; }
     var map = colMap(parsed.headers);
     if (!map.sku && !map.name && !map.barcode) { toast('no columns'); focusScanSoon(); return; }
@@ -270,7 +230,9 @@
     var resetBtn = document.getElementById('pack-reset');
     if (resetBtn) resetBtn.click();
     toast('imported ' + saved);
+    var statusEl = document.getElementById('pack-csv-status');
     if (statusEl) { statusEl.style.color = 'var(--ok,#15803d)'; statusEl.textContent = '\u2713 ' + saved + ' orders'; }
+    if (typeof window.__packQueueRefresh === 'function') window.__packQueueRefresh();
     focusScanSoon();
   }
 
@@ -312,10 +274,10 @@
   }, 800);
   [400, 1200, 3000, 6000].forEach(function (ms) { setTimeout(wire, ms); });
 
-  ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js', 'pack-bigseller-bridge.js', 'pack-visual.js'].forEach(function (src) {
+  ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js', 'pack-bigseller-bridge.js', 'pack-visual.js', 'pack-queue.js', 'pack-auto-complete.js'].forEach(function (src) {
     if (document.querySelector('script[src*="' + src.replace('.js', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=visual1';
+    s.src = src + '?v=feat3';
     document.body.appendChild(s);
   });
 
