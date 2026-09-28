@@ -10,7 +10,6 @@
     if (!main) return;
 
     var page = document.getElementById('page-pack');
-    // Empty shell blocks pack.js ensurePackUI — remove so it can rebuild
     if (page && !page.querySelector('#pack-scan')) {
       try { page.remove(); } catch (e) {}
       page = null;
@@ -29,8 +28,14 @@
     var target = btn || document.querySelector('.ni[data-page="pack"]');
     if (target) target.classList.add('on');
 
-    var scan = document.getElementById('pack-scan');
-    if (scan) setTimeout(function () { try { scan.focus(); } catch (e) {} }, 250);
+    function focusScan() {
+      var scan = document.getElementById('pack-scan');
+      if (!scan) return;
+      try { scan.focus({ preventScroll: true }); } catch (e) { try { scan.focus(); } catch (e2) {} }
+    }
+    setTimeout(focusScan, 100);
+    setTimeout(focusScan, 400);
+    setTimeout(focusScan, 900);
   }
 
   document.addEventListener('click', function (e) {
