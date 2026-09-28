@@ -1,5 +1,6 @@
 /**
- * Wrong-scan alert: loud beep + strong vibrate + sticky red ERROR until correct scan
+ * Wrong-scan alert: loud beep + strong vibrate + sticky red ERROR
+ * Can dismiss with button / Escape (does not require correct scan)
  */
 (function () {
   'use strict';
@@ -9,7 +10,10 @@
   var beepTimer = null;
 
   function ensureOverlay() {
-    if (document.getElementById('pack-err-ov')) return;
+    var existing = document.getElementById('pack-err-ov');
+    if (existing && document.getElementById('pack-err-close')) return;
+    if (existing) existing.remove();
+
     var ov = document.createElement('div');
     ov.id = 'pack-err-ov';
     ov.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;background:rgba(180,20,20,0.92);' +
@@ -18,23 +22,38 @@
       '<div style="font-size:72px;line-height:1;margin-bottom:12px">\u2715</div>' +
       '<div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:.04em;margin-bottom:8px">ERROR</div>' +
       '<div style="font-size:18px;font-weight:600;color:#fecaca;margin-bottom:16px" id="pack-err-msg">\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1c\u0e34\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c</div>' +
-      '<div style="font-size:14px;color:rgba(255,255,255,.85);max-width:320px;line-height:1.5;white-space:pre-line" id="pack-err-detail">\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e19\u0e35\u0e49\u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19 \u00b7 \u0e2b\u0e19\u0e49\u0e32\u0e08\u0e2d\u0e41\u0e14\u0e07\u0e08\u0e30\u0e2b\u0e32\u0e22\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e2a\u0e41\u0e01\u0e19\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07</div>' +
+      '<div style="font-size:14px;color:rgba(255,255,255,.85);max-width:320px;line-height:1.5;white-space:pre-line" id="pack-err-detail"></div>' +
       '<div style="margin-top:28px;width:100%;max-width:280px">' +
       '<label style="font-size:12px;color:rgba(255,255,255,.7);display:block;margin-bottom:6px">\u0e23\u0e30\u0e14\u0e31\u0e1a\u0e40\u0e2a\u0e35\u0e22\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19</label>' +
       '<input type="range" id="pack-err-vol" min="0" max="1" step="0.05" style="width:100%">' +
       '</div>' +
-      '<button type="button" id="pack-err-mute" style="margin-top:16px;padding:12px 20px;border-radius:12px;' +
-      'background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-size:14px">\u0e1b\u0e34\u0e14\u0e40\u0e2a\u0e35\u0e22\u0e07\u0e04\u0e23\u0e31\u0e49\u0e07\u0e19\u0e35\u0e49</button>';
+      '<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center">' +
+      '<button type="button" id="pack-err-mute" style="padding:12px 18px;border-radius:12px;' +
+      'background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-size:14px;cursor:pointer">\u0e1b\u0e34\u0e14\u0e40\u0e2a\u0e35\u0e22\u0e07\u0e04\u0e23\u0e31\u0e49\u0e07\u0e19\u0e35\u0e49</button>' +
+      '<button type="button" id="pack-err-close" style="padding:12px 22px;border-radius:12px;' +
+      'background:#fff;color:#b91c1c;border:none;font-size:15px;font-weight:700;cursor:pointer">\u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e15\u0e48\u0e2d\u0e19\u0e35\u0e49</button>' +
+      '</div>' +
+      '<div style="margin-top:14px;font-size:12px;color:rgba(255,255,255,.65)">\u0e01\u0e14 Esc \u0e2b\u0e23\u0e37\u0e2d\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e1b\u0e34\u0e14</div>';
     document.body.appendChild(ov);
+
     var vol = document.getElementById('pack-err-vol');
     if (vol) {
       vol.value = String(volume);
       vol.addEventListener('input', function () {
-        volume = parseFloat(vol.value);
-        localStorage.setItem('sf_alert_vol', String(volume));
+        volume = parseFloat(vol.value) || 0;
+        try { localStorage.setItem('sf_alert_vol', String(volume)); } catch (e) {}
       });
     }
-    document.getElementById('pack-err-mute').addEventListener('click', function () { stopBeep(); });
+    document.getElementById('pack-err-mute').addEventListener('click', function (e) {
+      e.stopPropagation();
+      stopBeep();
+    });
+    document.getElementById('pack-err-close').addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      clearError();
+      focusScan();
+    });
   }
 
   function ensureVolControl() {
@@ -52,7 +71,7 @@
     fb.parentNode.insertBefore(wrap, fb);
     document.getElementById('pack-vol-slider').addEventListener('input', function (e) {
       volume = parseFloat(e.target.value);
-      localStorage.setItem('sf_alert_vol', String(volume));
+      try { localStorage.setItem('sf_alert_vol', String(volume)); } catch (err) {}
       var pct = document.getElementById('pack-vol-pct');
       if (pct) pct.textContent = Math.round(volume * 100) + '%';
       var errVol = document.getElementById('pack-err-vol');
@@ -99,16 +118,29 @@
   function stopBeep() {
     if (beepTimer) { clearTimeout(beepTimer); beepTimer = null; }
   }
+
+  function focusScan() {
+    var scan = document.getElementById('pack-scan');
+    if (!scan) return;
+    try {
+      scan.focus({ preventScroll: true });
+      try { scan.select(); } catch (e) {}
+    } catch (e2) {
+      try { scan.focus(); } catch (e3) {}
+    }
+  }
+
   function showError(scannedValue) {
     ensureOverlay();
     errorActive = true;
     var ov = document.getElementById('pack-err-ov');
-    ov.style.display = 'flex';
+    if (ov) ov.style.display = 'flex';
     var msg = document.getElementById('pack-err-msg');
     var det = document.getElementById('pack-err-detail');
     if (msg) msg.textContent = '\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1c\u0e34\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e1a\u0e25\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27';
     if (det) det.textContent = (scannedValue ? ('\u0e2a\u0e41\u0e01\u0e19\u0e44\u0e14\u0e49: ' + scannedValue + '\n') : '') +
-      '\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e35\u0e48\u0e2d\u0e22\u0e39\u0e48\u0e43\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e19\u0e35\u0e49\u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19\n\u0e2b\u0e19\u0e49\u0e32\u0e08\u0e2d\u0e41\u0e14\u0e07\u0e08\u0e30\u0e2b\u0e32\u0e22\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e2a\u0e41\u0e01\u0e19\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07';
+      '\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e35\u0e48\u0e2d\u0e22\u0e39\u0e48\u0e43\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e19\u0e35\u0e49\u0e40\u0e17\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19\n' +
+      '\u0e01\u0e14 \u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e15\u0e48\u0e2d\u0e19\u0e35\u0e49 \u0e2b\u0e23\u0e37\u0e2d\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23';
     var errVol = document.getElementById('pack-err-vol');
     if (errVol) errVol.value = String(volume);
     var fb = document.getElementById('pack-fb');
@@ -121,19 +153,28 @@
     }
     startBeepLoop();
   }
+
   function clearError() {
-    if (!errorActive) return;
     errorActive = false;
     stopBeep();
     var ov = document.getElementById('pack-err-ov');
     if (ov) ov.style.display = 'none';
+    var wg = document.getElementById('pack-wrong-guide');
+    if (wg) wg.style.display = 'none';
     var fb = document.getElementById('pack-fb');
     if (fb) {
       fb.style.border = 'none';
       fb.style.fontSize = '13px';
       fb.removeAttribute('data-err');
+      var t = fb.textContent || '';
+      if (t.indexOf('\u0e1c\u0e34\u0e14') >= 0 || t.indexOf('\u0e1a\u0e25\u0e47\u0e2d\u0e01') >= 0) {
+        fb.style.background = 'var(--bg, #f3f1eb)';
+        fb.style.color = 'var(--ink3, #8A8F99)';
+        fb.textContent = '\u0e23\u0e2d\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u2026';
+      }
     }
   }
+
   function isWrongText(t) {
     t = (t || '');
     return t.indexOf('\u0e1c\u0e34\u0e14') >= 0 || t.indexOf('\u0e1a\u0e25\u0e47\u0e2d\u0e01') >= 0 || t.indexOf('\u2715') >= 0 || t.indexOf('\u00d7') >= 0;
@@ -142,6 +183,7 @@
     t = (t || '');
     return t.indexOf('\u2713') === 0 || t.indexOf('\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07') >= 0;
   }
+
   function watchFb() {
     var fb = document.getElementById('pack-fb');
     if (!fb || fb._alertObs) return;
@@ -157,15 +199,28 @@
     obs.observe(fb, { childList: true, characterData: true, subtree: true });
     fb._alertObs = obs;
   }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && errorActive) {
+      clearError();
+      focusScan();
+    }
+  }, true);
+
   function onPack() {
     ensureOverlay();
     ensureVolControl();
     watchFb();
   }
+
   document.addEventListener('click', function (e) {
     var btn = e.target.closest && e.target.closest('.ni[data-page="pack"]');
     if (btn) setTimeout(onPack, 200);
   });
-  setTimeout(onPack, 2500);
-  setTimeout(onPack, 5000);
+
+  window.__packClearError = clearError;
+  window.__packShowError = showError;
+
+  setTimeout(onPack, 1500);
+  setTimeout(onPack, 4000);
 })();
