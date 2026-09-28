@@ -10,7 +10,7 @@
   fetch(url, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
     html = html.replace(
       '<script src="barcode-edit.js"><\/script>',
-      '<script src="barcode-edit.js"><\/script>\n<script src="product-image.js"><\/script>\n<script src="pack-wrong-guide.js"><\/script>\n<script src="pack-orders.js"><\/script>\n<script src="pack-line-ui.js"><\/script>'
+      '<script src="barcode-edit.js"><\/script>\n<script src="product-image.js"><\/script>\n<script src="pack-wrong-guide.js"><\/script>\n<script src="pack-orders.js"><\/script>\n<script src="pack-line-ui.js"><\/script>\n<script src="pack-match.js"><\/script>'
     );
     document.open();
     document.write(html);
