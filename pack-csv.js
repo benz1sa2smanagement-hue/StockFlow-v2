@@ -172,7 +172,7 @@
     panel.style.cssText = 'padding:14px 16px;margin-bottom:12px;border:2px dashed rgba(12,14,18,.18);background:rgba(255,248,230,.95)';
     panel.innerHTML =
       '<div style="font-size:14px;font-weight:800;margin-bottom:6px">\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e08\u0e32\u0e01 BigSeller</div>' +
-      '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">CSV / Excel \u2014 \u0e17\u0e32\u0e07\u0e2a\u0e33\u0e23\u0e2d\u0e07\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e2a\u0e30\u0e1e\u0e32\u0e19\u0e44\u0e21\u0e48\u0e1e\u0e23\u0e49\u0e2d\u0e21</div>' +
+      '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">CSV / Excel</div>' +
       '<label for="pack-csv-file" style="display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:14px;background:var(--ink,#0C0E12);color:#fff;font-weight:700;cursor:pointer">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e44\u0e1f\u0e25\u0e4c CSV / Excel</label>' +
       '<input type="file" id="pack-csv-file" accept=".csv,.xlsx,.xls" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;z-index:-1">' +
       '<div id="pack-csv-status" style="font-size:12px;color:var(--ink3);margin-top:10px"></div>';
@@ -279,7 +279,7 @@
   ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js', 'pack-bigseller-bridge.js', 'pack-visual.js', 'pack-queue.js', 'pack-auto-complete.js', 'pack-history.js', 'pack-map-ui.js', 'pack-mobile.js'].forEach(function (src) {
     if (document.querySelector('script[src*="' + src.replace('.js', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=ux2';
+    s.src = src + '?v=nav1';
     document.body.appendChild(s);
   });
 
