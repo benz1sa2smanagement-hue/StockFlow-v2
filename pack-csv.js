@@ -263,7 +263,7 @@
       var s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
       s.onload = resolve;
-      s.onerror = function () { reject(new Error('\u0e42\u0e2b\u0e25\u0e14 SheetJS \u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08')); };
+      s.onerror = function () { reject(new Error('SheetJS load failed')); };
       document.head.appendChild(s);
     });
   }
@@ -285,15 +285,15 @@
   function finishImport(parsed) {
     var statusEl = document.getElementById('pack-csv-status');
     if (!parsed.data.length) {
-      toast('\u0e44\u0e1f\u0e25\u0e4c\u0e27\u0e48\u0e32\u0e07');
-      if (statusEl) statusEl.textContent = '\u0e44\u0e1f\u0e25\u0e4c\u0e27\u0e48\u0e32\u0e07';
+      toast('empty file');
+      if (statusEl) statusEl.textContent = 'empty';
       focusScanSoon();
       return;
     }
     var map = colMap(parsed.headers);
     if (!map.sku && !map.name && !map.barcode) {
-      toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e04\u0e2d\u0e25\u0e31\u0e21\u0e19\u0e4c SKU / \u0e0a\u0e37\u0e48\u0e2d / \u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14');
-      if (statusEl) statusEl.textContent = '\u0e2b\u0e31\u0e27\u0e15\u0e32\u0e23\u0e32\u0e07: ' + parsed.headers.slice(0, 8).join(', ');
+      toast('no SKU columns');
+      if (statusEl) statusEl.textContent = 'headers: ' + parsed.headers.slice(0, 8).join(', ');
       focusScanSoon();
       return;
     }
@@ -304,16 +304,10 @@
     var resetBtn = document.getElementById('pack-reset');
     if (resetBtn) resetBtn.click();
 
-    toast('\u0e19\u0e33\u0e40\u0e02\u0e49\u0e32 ' + saved + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u00b7 ' + lineCount + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23');
+    toast('imported ' + saved + ' orders');
     if (statusEl) {
       statusEl.style.color = 'var(--ok, #15803d)';
-      statusEl.textContent = '\u2713 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 \u00b7 ' + saved + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c';
-    }
-    var fb = document.getElementById('pack-fb');
-    if (fb) {
-      fb.style.background = 'var(--ok-soft, #dcfce7)';
-      fb.style.color = 'var(--ok, #15803d)';
-      fb.textContent = '\u2713 \u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e41\u0e25\u0e49\u0e27 ' + saved + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u2014 \u0e2a\u0e41\u0e01\u0e19 Tracking / Order ID \u0e44\u0e14\u0e49\u0e40\u0e25\u0e22';
+      statusEl.textContent = '\u2713 ready \u00b7 ' + saved + ' orders';
     }
     focusScanSoon();
   }
@@ -323,7 +317,7 @@
     var statusEl = document.getElementById('pack-csv-status');
     if (statusEl) {
       statusEl.style.color = 'var(--ink3, #8A8F99)';
-      statusEl.textContent = '\u0e01\u0e33\u0e25\u0e31\u0e07\u0e2d\u0e48\u0e32\u0e19\u0e44\u0e1f\u0e25\u0e4c: ' + (file.name || '') + ' \u2026';
+      statusEl.textContent = 'loading: ' + (file.name || '');
     }
     loadSkus().then(function () {
       if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
@@ -350,8 +344,8 @@
     }).then(function (parsed) {
       finishImport(parsed);
     }).catch(function (e) {
-      toast('\u0e2d\u0e48\u0e32\u0e19\u0e44\u0e1f\u0e25\u0e4c\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08: ' + (e.message || e));
-      if (statusEl) statusEl.textContent = '\u0e2d\u0e48\u0e32\u0e19\u0e44\u0e1f\u0e25\u0e4c\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08';
+      toast('import fail: ' + (e.message || e));
+      if (statusEl) statusEl.textContent = 'import fail';
       focusScanSoon();
     });
   }
@@ -380,10 +374,10 @@
 
   [400, 1000, 2000, 3500, 6000, 10000].forEach(function (ms) { setTimeout(wire, ms); });
 
-  ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js'].forEach(function (src) {
+  ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js', 'pack-bigseller-bridge.js'].forEach(function (src) {
     if (document.querySelector('script[src*="' + src.replace('.js', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=persist1';
+    s.src = src + '?v=bsbridge1';
     document.body.appendChild(s);
   });
 
