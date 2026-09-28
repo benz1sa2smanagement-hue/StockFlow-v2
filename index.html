@@ -108,23 +108,23 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .wh-i{flex:1;min-width:0}.wh-n{font-size:14px;font-weight:500}.wh-m{font-size:11px;color:var(--ink3);margin-top:2px}
 .wh-btn{background:var(--ink);color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600}
 .bnav{position:absolute;bottom:0;left:0;right:0;padding:0 14px;padding-bottom:calc(10px + var(--sb));pointer-events:none;z-index:100}
-.bnav-i{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:rgba(255,255,255,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:28px;padding:8px 6px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,0.95);max-width:420px;margin:0 auto}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--ink3);font-size:10px;font-weight:500}
+.bnav-i{pointer-events:auto;display:flex;align-items:center;justify-content:space-around;background:rgba(255,255,255,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:28px;padding:8px 6px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,0.95);max-width:520px;margin:0 auto}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--ink3);font-size:10px;font-weight:500;cursor:pointer;pointer-events:auto}
 .ni.on{color:var(--ink)}
 .ni .ic{font-size:18px;line-height:1}
-.ns{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#5B6CFF,#4A5AE8);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 6px 20px rgba(91,108,255,0.4);border:3px solid #F0F4FA;color:#fff;font-size:20px}
+.ns{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#5B6CFF,#4A5AE8);display:flex;align-items:center;justify-content:center;margin-top:-20px;box-shadow:0 6px 20px rgba(91,108,255,0.4);border:3px solid #F0F4FA;color:#fff;font-size:20px;cursor:pointer}
 .ov{position:fixed;inset:0;background:rgba(12,14,18,.4);z-index:300;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
 .ov.open{display:flex}
 .sheet{background:var(--paper);border-radius:24px 24px 0 0;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;padding-bottom:calc(20px + var(--sb));box-shadow:var(--shadow-lg);-webkit-overflow-scrolling:touch}
 .sheet-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:1}
 .sheet-t{font-size:16px;font-weight:600}
-.sheet-x{width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--line);font-size:14px;color:var(--ink2)}
+.sheet-x{width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--line);font-size:14px;color:var(--ink2);cursor:pointer}
 .sheet-b{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
 .seg{display:flex;background:var(--bg);border-radius:14px;padding:4px;border:1px solid var(--line)}
 .seg button{flex:1;padding:10px;border-radius:11px;font-size:13px;font-weight:500;color:var(--ink3)}
 .seg button.on{background:var(--paper);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
 .plat{display:flex;flex-wrap:wrap;gap:8px}
-.plat button{padding:8px 14px;border-radius:100px;border:1px solid var(--line);background:var(--bg);font-size:12px;font-weight:500;color:var(--ink2)}
+.plat button{padding:8px 14px;border-radius:100px;border:1px solid var(--line);background:var(--bg);font-size:12px;font-weight:500;color:var(--ink2);cursor:pointer}
 .plat button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .od-date{display:flex;align-items:center;gap:8px;padding:12px 20px 6px}
 .od-db{width:34px;height:34px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:16px;font-weight:600}
@@ -210,6 +210,10 @@ input,select,textarea{font-family:inherit;font-size:16px}
       <div class="pt">สินค้า</div>
       <div class="card" id="prod-list"><div class="empty">กำลังโหลด…</div></div>
     </div>
+    <div class="page" id="page-pack">
+      <div class="pt">แพ็กสินค้า · กันของผิด</div>
+      <div class="empty">กำลังโหลดหน้าแพ็ก…</div>
+    </div>
   </div>
   <div class="bnav"><div class="bnav-i">
     <button type="button" class="ni on" data-page="dash"><span class="ic">◎</span>หน้าหลัก</button>
@@ -258,6 +262,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 <script src="fix-ui.js"></script>
 <script src="barcode-edit.js"></script>
 <script src="pack.js"></script>
+<script src="pack-nav.js"></script>
 <script src="pack-csv.js"></script>
 </body>
 </html>
