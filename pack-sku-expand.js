@@ -1,5 +1,5 @@
 /**
- * Multi-pack expand + manual SKU mapping + silent expand for scan flow
+ * Multi-pack expand + manual SKU mapping + auto mapper on scan
  */
 (function () {
   'use strict';
@@ -171,7 +171,7 @@
       merged.push(Object.assign({}, l));
     });
     order.lines = merged;
-    order._unmatched = merged.filter(function (l) { return !l.matched; });
+    order._unmatched = merged.filter(function (l) { return l.matched !== true; });
     return order;
   }
 
@@ -197,7 +197,7 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
       '<div style="font-size:17px;font-weight:800">\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07</div>' +
       '<button type="button" id="pack-map-close" style="border:none;background:var(--bg,#f3f1eb);width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer">\u00d7</button></div>' +
-      '<div style="font-size:12px;color:var(--ink3);margin-bottom:12px">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19 StockFlow \u0e17\u0e35\u0e48\u0e15\u0e23\u0e07\u0e01\u0e31\u0e1a SKU BigSeller</div>' +
+      '<div style="font-size:12px;color:var(--ink3);margin-bottom:12px">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19 StockFlow \u0e17\u0e35\u0e48\u0e15\u0e23\u0e07\u0e01\u0e31\u0e1a SKU \u0e08\u0e32\u0e01 BigSeller \u2014 \u0e08\u0e30\u0e08\u0e33\u0e01\u0e32\u0e23\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48\u0e16\u0e32\u0e27\u0e23</div>' +
       '<div id="pack-map-list"></div>' +
       '<button type="button" id="pack-map-apply" style="width:100%;margin-top:14px;padding:14px;border-radius:14px;background:var(--ink,#0C0E12);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e01\u0e32\u0e23\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48</button></div>';
     document.body.appendChild(ov);
@@ -218,7 +218,7 @@
     pendingOrder = order;
     pendingCallback = cb || null;
     var list = document.getElementById('pack-map-list');
-    var unmatched = (order.lines || []).filter(function (l) { return !l.matched; });
+    var unmatched = (order.lines || []).filter(function (l) { return l && l.matched !== true; });
     if (!unmatched.length) { hideMapUi(); if (cb) cb(order); return; }
     var seen = {}, items = [];
     unmatched.forEach(function (l) {
@@ -262,7 +262,9 @@
       if (mapped) toast('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 ' + mapped + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23');
       var cb = pendingCallback; pendingCallback = null;
       if (cb) cb(pendingOrder);
-      else if (typeof window.__packLoadLines === 'function') window.__packLoadLines(pendingOrder);
+      if (typeof window.__packLoadLines === 'function' && pendingOrder && pendingOrder.id !== '_ALL_UNMATCHED_') {
+        try { window.__packLoadLines(pendingOrder); } catch (eL) {}
+      }
     });
   }
 
@@ -275,6 +277,21 @@
   window.__packExpandOrderSilent = expandOrderSilent;
   window.__packExpandLinesOnly = function (order) {
     getSkus().then(function (skus) { expandOrder(order, skus); });
+  };
+
+  window.__packShowSkuMapper = function (order) {
+    return getSkus().then(function (skus) {
+      expandOrder(order, skus);
+      var um = (order.lines || []).filter(function (l) { return l && l.matched !== true; });
+      if (!um.length) return order;
+      return new Promise(function (resolve) {
+        showUnmatchedMapper(order, skus, function (ord) { resolve(ord || order); });
+      });
+    });
+  };
+
+  window.__packExpandOrder = function (order) {
+    return window.__packShowSkuMapper(order).then(function (o) { return o || order; });
   };
 
   function processOrder(order) {
@@ -309,7 +326,7 @@
       var o = store[k];
       if (!o || !o.lines) return;
       o.lines.forEach(function (l) {
-        if (!l || l.matched) return;
+        if (!l || l.matched === true) return;
         var raw = normKey(l.rawSku || l.unitSku || l.skuId || l.name || '');
         if (!raw || seen[raw]) return;
         seen[raw] = 1;
@@ -347,7 +364,7 @@
         origSave(orders);
         var um = 0;
         (orders || []).forEach(function (o) {
-          (o.lines || []).forEach(function (l) { if (!l.matched) um++; });
+          (o.lines || []).forEach(function (l) { if (l && l.matched !== true) um++; });
         });
         if (um) {
           var statusEl = document.getElementById('pack-csv-status');
@@ -369,8 +386,10 @@
     window.__packShowSkuMapper = function (order) {
       return getSkus().then(function (skus) {
         expandOrder(order, skus);
+        var um = (order.lines || []).filter(function (l) { return l && l.matched !== true; });
+        if (!um.length) return order;
         return new Promise(function (resolve) {
-          showUnmatchedMapper(order, skus, resolve);
+          showUnmatchedMapper(order, skus, function (ord) { resolve(ord || order); });
         });
       });
     };
@@ -390,7 +409,7 @@
       var um = 0, seen = {};
       Object.keys(store).forEach(function (k) {
         (store[k] && store[k].lines || []).forEach(function (l) {
-          if (!l || l.matched) return;
+          if (!l || l.matched === true) return;
           var raw = normKey(l.rawSku || l.unitSku || l.skuId || '');
           if (!raw || seen[raw]) return;
           seen[raw] = 1; um++;
