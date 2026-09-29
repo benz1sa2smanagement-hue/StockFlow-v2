@@ -1,5 +1,5 @@
 /**
- * Multi-pack expand + manual SKU mapping + auto mapper on scan
+ * Multi-pack expand + manual SKU mapping — skips non-product lines
  */
 (function () {
   'use strict';
@@ -53,6 +53,27 @@
   }
   function normKey(s) {
     return norm(s).replace(/^-+/, '');
+  }
+
+  function isNonProductLine(name, sku) {
+    var t = String((name || '') + ' ' + (sku || '')).toLowerCase();
+    t = t.replace(/\s+/g, ' ').trim();
+    if (!t) return true;
+    if (t.indexOf('\u0e44\u0e21\u0e48\u0e43\u0e0a\u0e48\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32') >= 0) return true;
+    if (t.indexOf('\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d\u0e01\u0e32\u0e23\u0e15\u0e25\u0e32\u0e14') >= 0) return true;
+    if (t.indexOf('\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e2a\u0e33\u0e04\u0e31\u0e0d') >= 0) return true;
+    if (t.indexOf('\u0e2d\u0e31\u0e1e\u0e40\u0e14\u0e17 deadline') >= 0 || t.indexOf('\u0e2d\u0e31\u0e1b\u0e40\u0e14\u0e15 deadline') >= 0 || t.indexOf('update deadline') >= 0) return true;
+    if (/\bdeadline\b/.test(t) && (t.indexOf('\u0e2d\u0e31\u0e1e\u0e40\u0e14\u0e17') >= 0 || t.indexOf('\u0e2d\u0e31\u0e1b\u0e40\u0e14\u0e15') >= 0 || t.indexOf('update') >= 0 || t.indexOf('\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28') >= 0)) return true;
+    if (t === '\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e0b\u0e37\u0e49\u0e2d' || t === '\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28' || t === '\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e2a\u0e33\u0e04\u0e31\u0e0d') return true;
+    if (t.indexOf('\u0e42\u0e1b\u0e23\u0e14\u0e2d\u0e48\u0e32\u0e19') >= 0 || t.indexOf('\u0e42\u0e1b\u0e23\u0e14\u0e17\u0e23\u0e32\u0e1a') >= 0) return true;
+    if (t.indexOf('important notice') >= 0 || t.indexOf('announcement') >= 0) return true;
+    if (t.indexOf('\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e23\u0e30\u0e1a\u0e1a') >= 0 || t.indexOf('system message') >= 0) return true;
+    if (t.indexOf('\u0e04\u0e48\u0e32\u0e08\u0e31\u0e14\u0e2a\u0e48\u0e07') >= 0 || t.indexOf('\u0e04\u0e48\u0e32\u0e2a\u0e48\u0e07') === 0) return true;
+    if (t.indexOf('shipping fee') >= 0 || t.indexOf('service fee') >= 0) return true;
+    if (t.indexOf('\u0e04\u0e48\u0e32\u0e1a\u0e23\u0e34\u0e01\u0e32\u0e23') >= 0 || t.indexOf('\u0e04\u0e48\u0e32\u0e18\u0e23\u0e23\u0e21\u0e40\u0e19\u0e35\u0e22\u0e21') >= 0) return true;
+    if (/^[\-\_\.\*\s]+$/.test(t)) return true;
+    if (/^(n\/a|null|undefined|none|-)$/i.test(t)) return true;
+    return false;
   }
 
   function parseMulti(raw) {
@@ -161,7 +182,12 @@
 
   function expandOrder(order, skus) {
     if (!order || !order.lines) return order;
-    var lines = order.lines.map(function (l) { return expandLine(l, skus); });
+    var lines = order.lines
+      .filter(function (l) {
+        if (!l) return false;
+        return !isNonProductLine(l.name || '', l.unitSku || l.skuId || l.rawSku || '');
+      })
+      .map(function (l) { return expandLine(l, skus); });
     var merged = [];
     lines.forEach(function (l) {
       if (l.matched) {
@@ -197,7 +223,7 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
       '<div style="font-size:17px;font-weight:800">\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07</div>' +
       '<button type="button" id="pack-map-close" style="border:none;background:var(--bg,#f3f1eb);width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer">\u00d7</button></div>' +
-      '<div style="font-size:12px;color:var(--ink3);margin-bottom:12px">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19 StockFlow \u0e17\u0e35\u0e48\u0e15\u0e23\u0e07\u0e01\u0e31\u0e1a SKU \u0e08\u0e32\u0e01 BigSeller \u2014 \u0e08\u0e30\u0e08\u0e33\u0e01\u0e32\u0e23\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48\u0e16\u0e32\u0e27\u0e23</div>' +
+      '<div style="font-size:12px;color:var(--ink3);margin-bottom:12px">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19 StockFlow (\u0e02\u0e49\u0e32\u0e21\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e17\u0e35\u0e48\u0e44\u0e21\u0e48\u0e43\u0e0a\u0e48\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27)</div>' +
       '<div id="pack-map-list"></div>' +
       '<button type="button" id="pack-map-apply" style="width:100%;margin-top:14px;padding:14px;border-radius:14px;background:var(--ink,#0C0E12);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e01\u0e32\u0e23\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48</button></div>';
     document.body.appendChild(ov);
@@ -218,7 +244,10 @@
     pendingOrder = order;
     pendingCallback = cb || null;
     var list = document.getElementById('pack-map-list');
-    var unmatched = (order.lines || []).filter(function (l) { return l && l.matched !== true; });
+    var unmatched = (order.lines || []).filter(function (l) {
+      if (!l || l.matched === true) return false;
+      return !isNonProductLine(l.name || '', l.rawSku || l.unitSku || l.skuId || '');
+    });
     if (!unmatched.length) { hideMapUi(); if (cb) cb(order); return; }
     var seen = {}, items = [];
     unmatched.forEach(function (l) {
@@ -282,7 +311,9 @@
   window.__packShowSkuMapper = function (order) {
     return getSkus().then(function (skus) {
       expandOrder(order, skus);
-      var um = (order.lines || []).filter(function (l) { return l && l.matched !== true; });
+      var um = (order.lines || []).filter(function (l) {
+        return l && l.matched !== true && !isNonProductLine(l.name || '', l.rawSku || l.unitSku || l.skuId || '');
+      });
       if (!um.length) return order;
       return new Promise(function (resolve) {
         showUnmatchedMapper(order, skus, function (ord) { resolve(ord || order); });
@@ -327,6 +358,7 @@
       if (!o || !o.lines) return;
       o.lines.forEach(function (l) {
         if (!l || l.matched === true) return;
+        if (isNonProductLine(l.name || '', l.rawSku || l.unitSku || l.skuId || '')) return;
         var raw = normKey(l.rawSku || l.unitSku || l.skuId || l.name || '');
         if (!raw || seen[raw]) return;
         seen[raw] = 1;
@@ -364,7 +396,9 @@
         origSave(orders);
         var um = 0;
         (orders || []).forEach(function (o) {
-          (o.lines || []).forEach(function (l) { if (l && l.matched !== true) um++; });
+          (o.lines || []).forEach(function (l) {
+            if (l && l.matched !== true && !isNonProductLine(l.name || '', l.rawSku || l.unitSku || l.skuId || '')) um++;
+          });
         });
         if (um) {
           var statusEl = document.getElementById('pack-csv-status');
@@ -376,6 +410,8 @@
             statusEl.onclick = function () { window.__packMapAllUnmatched(); };
           }
           ensureMapAllBtn(um);
+        } else {
+          ensureMapAllBtn(0);
         }
       });
       return (orders || []).length;
@@ -383,16 +419,6 @@
     window.__bsSaveOrders._mapExp = true;
 
     window.__packExpandOrder = processOrder;
-    window.__packShowSkuMapper = function (order) {
-      return getSkus().then(function (skus) {
-        expandOrder(order, skus);
-        var um = (order.lines || []).filter(function (l) { return l && l.matched !== true; });
-        if (!um.length) return order;
-        return new Promise(function (resolve) {
-          showUnmatchedMapper(order, skus, function (ord) { resolve(ord || order); });
-        });
-      });
-    };
     return true;
   }
 
@@ -410,6 +436,7 @@
       Object.keys(store).forEach(function (k) {
         (store[k] && store[k].lines || []).forEach(function (l) {
           if (!l || l.matched === true) return;
+          if (isNonProductLine(l.name || '', l.rawSku || l.unitSku || l.skuId || '')) return;
           var raw = normKey(l.rawSku || l.unitSku || l.skuId || '');
           if (!raw || seen[raw]) return;
           seen[raw] = 1; um++;
