@@ -1,5 +1,5 @@
 /**
- * Pack order scan: index all order IDs (Shopee SN, tracking, package)
+ * Pack order scan — match QR / tracking barcode / order SN from label
  */
 (function () {
   'use strict';
@@ -66,8 +66,8 @@
     var box = document.getElementById('pack-lines');
     var nLines = box ? box.querySelectorAll('.row-q, .plu').length : 0;
     var nOrd = orderCount();
-    if (nLines > 0) setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'info');
-    else if (nOrd > 0) setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u00b7 \u0e21\u0e35 ' + nOrd + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e04\u0e34\u0e27', 'ok');
+    if (nLines > 0) setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u00b7 \u0e2a\u0e41\u0e01\u0e19 barcode \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'info');
+    else if (nOrd > 0) setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 \u00b7 QR / Tracking / Order ID \u00b7 \u0e04\u0e34\u0e27 ' + nOrd + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c', 'ok');
     else setStatus('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e01\u0e14\u0e14\u0e36\u0e07\u0e08\u0e32\u0e01 BigSeller \u0e01\u0e48\u0e2d\u0e19', 'warn');
   }
 
@@ -149,6 +149,14 @@
           var rest = k2.slice(6);
           if (rest.length >= 6 && keys.indexOf(rest) < 0) keys.push(rest);
         }
+        [10, 12, 14].forEach(function (n) {
+          if (k2.length >= n) {
+            var t = k2.slice(-n);
+            if (keys.indexOf(t) < 0) keys.push(t);
+          }
+        });
+        var stripped = k2.replace(/^(SPX|TH|LEX|JT|JNT|FLASH|KER|ECOM|BEST|NJV)/, '');
+        if (stripped.length >= 8 && keys.indexOf(stripped) < 0) keys.push(stripped);
       }
     });
     keys.forEach(function (k) { store[k] = order; });
@@ -161,7 +169,7 @@
       if (o && o.lines && o.lines.length) { indexOrder(store, o); n++; }
     });
     saveStore(store);
-    setStatus('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01 ' + n + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32', 'ok');
+    setStatus('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01 ' + n + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19 QR / Tracking / Order', 'ok');
     focusReady();
     return n;
   }
@@ -171,21 +179,82 @@
     function add(x) {
       x = String(x || '').trim();
       if (!x || x.length < 3) return;
-      var k = norm(x); if (seen[k]) return; seen[k] = 1; out.push(x);
+      x = x.replace(/^[#\*\s]+|[#\*\s]+$/g, '');
+      if (!x || x.length < 3) return;
+      var k = norm(x);
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      out.push(x);
+    }
+    function addAlnum(x) {
+      x = String(x || '').replace(/[^A-Za-z0-9]/g, '');
+      if (x.length >= 5) add(x);
     }
     var v = String(raw || '').trim();
     if (!v) return out;
     add(v);
     add(thaiLayoutToEn(v));
-    if (/^https?:\/\//i.test(v) || /spx\.|shopee|lazada|tiktok/i.test(v)) {
+
+    var urlish = v;
+    if (!/^https?:\/\//i.test(urlish) && /(?:spx\.|shopee|lazada|tiktok|flash|jtexpress|kerry|bigseller|parcel|tracking)/i.test(urlish)) {
+      urlish = 'https://' + urlish.replace(/^\/+/, '');
+    }
+    if (/^https?:\/\//i.test(urlish) || /[?&](order|track|tn|sn|id)=/i.test(v)) {
       try {
-        var u = new URL(/^https?:\/\//i.test(v) ? v : 'https://' + v);
-        u.pathname.split('/').forEach(function (p) { try { add(decodeURIComponent(p)); } catch (e) { add(p); } });
-        u.searchParams.forEach(function (val) { add(val); });
+        var u = new URL(/^https?:\/\//i.test(urlish) ? urlish : 'https://dummy.local/?' + v.replace(/^\?/, ''));
+        u.pathname.split('/').forEach(function (p) {
+          try { add(decodeURIComponent(p)); } catch (e) { add(p); }
+          addAlnum(p);
+        });
+        u.searchParams.forEach(function (val, key) {
+          add(val);
+          addAlnum(val);
+          if (/order|track|tn|sn|bill|waybill|package|code/i.test(key)) add(val);
+        });
+        if (u.hash) {
+          add(u.hash.replace(/^#/, ''));
+          addAlnum(u.hash);
+        }
       } catch (e) {}
     }
-    (v.match(/[A-Za-z0-9][A-Za-z0-9\-_]{4,}|[0-9]{6,}/g) || []).forEach(add);
-    add(v.replace(/[^A-Za-z0-9]/g, ''));
+
+    if (v.charAt(0) === '{' || v.charAt(0) === '[') {
+      try {
+        var j = JSON.parse(v);
+        function walk(o, d) {
+          if (d > 4 || o == null) return;
+          if (typeof o === 'string' || typeof o === 'number') { add(String(o)); addAlnum(String(o)); return; }
+          if (Array.isArray(o)) { o.forEach(function (x) { walk(x, d + 1); }); return; }
+          if (typeof o === 'object') {
+            Object.keys(o).forEach(function (k) {
+              if (/order|track|tn|sn|bill|waybill|package|code|id/i.test(k)) add(String(o[k] == null ? '' : o[k]));
+              walk(o[k], d + 1);
+            });
+          }
+        }
+        walk(j, 0);
+      } catch (eJ) {}
+    }
+
+    v.split(/[\s\|\,\;\/\\\n\r\t]+/).forEach(function (p) {
+      if (p.length >= 5) add(p);
+      addAlnum(p);
+    });
+
+    (v.match(/[A-Za-z0-9][A-Za-z0-9\-_]{4,}/g) || []).forEach(function (m) {
+      add(m);
+      addAlnum(m);
+    });
+    (v.match(/[0-9]{8,}/g) || []).forEach(add);
+    (v.match(/[0-9]{6}[A-Za-z0-9]{6,}/g) || []).forEach(function (m) {
+      add(m);
+      add(m.slice(6));
+    });
+    (v.match(/(?:SPX|TH|LEX|JT|JNT|FLASH|KER|ECOM|BEST|DHL|NJV)[A-Za-z0-9]{6,}/gi) || []).forEach(add);
+    (v.match(/TH[0-9]{8,}/gi) || []).forEach(add);
+
+    addAlnum(v);
+    add(v.replace(/[^A-Za-z0-9\-]/g, ''));
     return out;
   }
 
@@ -194,22 +263,41 @@
     var storeKeys = Object.keys(store);
     if (!storeKeys.length) return null;
     var candidates = extractCandidates(code);
-    var i, j, k, k2, sk;
+    var i, j, k, k2, sk, best = null, bestScore = 0;
+
+    function scoreKey(cand, key) {
+      if (!cand || !key) return 0;
+      if (cand === key) return 100;
+      if (key.indexOf(cand) >= 0) return 60 + Math.min(30, cand.length);
+      if (cand.indexOf(key) >= 0) return 50 + Math.min(30, key.length);
+      if (cand.length >= 8 && key.length >= 8) {
+        if (cand.slice(-12) === key.slice(-12)) return 70;
+        if (key.slice(-10) === cand.slice(-10)) return 65;
+      }
+      return 0;
+    }
+
     for (i = 0; i < candidates.length; i++) {
       k = norm(candidates[i]);
       if (store[k]) return store[k];
       k2 = k.replace(/[^A-Z0-9]/g, '');
-      if (store[k2]) return store[k2];
+      if (k2 && store[k2]) return store[k2];
     }
+
     for (i = 0; i < candidates.length; i++) {
       k = norm(candidates[i]).replace(/[^A-Z0-9]/g, '');
       if (k.length < 5) continue;
       for (j = 0; j < storeKeys.length; j++) {
         sk = storeKeys[j];
         if (sk.length < 5) continue;
-        if (sk === k || sk.indexOf(k) >= 0 || k.indexOf(sk) >= 0) return store[sk];
+        var sc = scoreKey(k, sk.replace(/[^A-Z0-9]/g, ''));
+        if (sc > bestScore) {
+          bestScore = sc;
+          best = store[sk];
+        }
       }
     }
+    if (bestScore >= 50) return best;
     return null;
   }
 
@@ -231,9 +319,7 @@
         try {
           var ret = window.__packShowSkuMapper(order);
           if (ret && typeof ret.then === 'function') {
-            ret.then(function (o) {
-              if (o) loadLinesIntoPack(o);
-            }).catch(function () {});
+            ret.then(function (o) { if (o) loadLinesIntoPack(o); }).catch(function () {});
           }
         } catch (e) {}
         setStatus('\u0e21\u0e35 SKU \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 \u2014 \u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07\u0e41\u0e25\u0e49\u0e27\u0e01\u0e14\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01', 'warn');
@@ -329,9 +415,7 @@
     lastTry = { v: norm(order.id || order.track || order.platformOrder || ''), t: Date.now() };
     setStatus('\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u2026', 'info');
 
-    function afterExpand(o) {
-      loadLinesIntoPack(o || order);
-    }
+    function afterExpand(o) { loadLinesIntoPack(o || order); }
 
     if (typeof window.__packExpandOrderSilent === 'function') {
       window.__packExpandOrderSilent(order).then(afterExpand).catch(function () { afterExpand(order); });
@@ -434,7 +518,7 @@
     var orderEl = document.getElementById('pack-order');
     if (!orderEl || orderEl.getAttribute('data-bs-order-bound')) return;
     orderEl.setAttribute('data-bs-order-bound', '1');
-    orderEl.setAttribute('placeholder', '\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / Order ID / Tracking');
+    orderEl.setAttribute('placeholder', '\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / QR / Tracking / Order ID');
     orderEl.addEventListener('input', function () {
       if (orderTimer) clearTimeout(orderTimer);
       orderTimer = setTimeout(function () { onOrderValue(orderEl.value, false); }, 80);
