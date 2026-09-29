@@ -1,7 +1,5 @@
 /**
  * BigSeller order store + label scan → load pack product lines
- * - Scan into pack-order OR pack-scan loads order items automatically
- * - After packing (or when all done), scan next order barcode to switch without button
  */
 (function () {
   'use strict';
@@ -165,12 +163,16 @@
     var added = 0;
     var names = [];
 
+    var unmatchedN = 0;
     (order.lines || []).forEach(function (l) {
       if (!l) return;
-      var skuId = l.skuId || l.unitSku || '';
+      var skuId = l.skuId || l.unitSku || l.rawSku || '';
       var qty = parseInt(l.qty, 10) || 1;
       var name = l.name || skuId || '\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';
-      if (!skuId) return;
+      if (!skuId) {
+        skuId = 'UNMATCHED_' + (l.name || Math.random().toString(36).slice(2, 8));
+      }
+      if (l.matched === false || l.needMap) unmatchedN++;
 
       if (sel && addBtn && qtyEl) {
         var has = false;
@@ -180,7 +182,7 @@
         if (!has) {
           var opt = document.createElement('option');
           opt.value = skuId;
-          opt.textContent = name + (l.unitSku && l.unitSku !== name ? ' \u00b7 ' + l.unitSku : '');
+          opt.textContent = (l.matched === false ? '[?] ' : '') + name + (l.unitSku && l.unitSku !== name ? ' \u00b7 ' + l.unitSku : '');
           sel.appendChild(opt);
         }
         sel.value = skuId;
@@ -188,17 +190,36 @@
         try { addBtn.click(); added++; names.push(name + ' \u00d7' + qty); } catch (e) {}
       }
     });
+    if (unmatchedN > 0 && typeof window.__packShowSkuMapper === 'function') {
+      setTimeout(function () {
+        try { window.__packShowSkuMapper(order); } catch (eM) {}
+      }, 200);
+    }
 
     var fb = document.getElementById('pack-fb');
     if (fb) {
-      if (added > 0) {
+      if (added > 0 && unmatchedN === 0) {
         fb.style.background = 'var(--ok-soft, #dcfce7)';
         fb.style.color = 'var(--ok, #15803d)';
         fb.textContent = '\u2713 \u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e41\u0e25\u0e49\u0e27 \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u2014 \u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e44\u0e14\u0e49\u0e40\u0e25\u0e22';
+        fb.style.cursor = 'default';
+        fb.onclick = null;
+      } else if (added > 0 && unmatchedN > 0) {
+        fb.style.background = '#fef3c7';
+        fb.style.color = '#92400e';
+        fb.style.cursor = 'pointer';
+        fb.textContent = '\u26a0 \u0e42\u0e2b\u0e25\u0e14 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u00b7 \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 ' + unmatchedN + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u2014 \u0e01\u0e14\u0e17\u0e35\u0e48\u0e19\u0e35\u0e48\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48';
+        fb.onclick = function () {
+          if (typeof window.__packShowSkuMapper === 'function') window.__packShowSkuMapper(order);
+        };
       } else {
         fb.style.background = 'var(--bad-soft, #fee2e2)';
         fb.style.color = 'var(--bad, #b91c1c)';
-        fb.textContent = '\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e41\u0e15\u0e48\u0e42\u0e2b\u0e25\u0e14\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49 \u2014 \u0e15\u0e23\u0e27\u0e08 SKU \u0e43\u0e19\u0e04\u0e25\u0e31\u0e07';
+        fb.style.cursor = 'pointer';
+        fb.textContent = '\u0e44\u0e21\u0e48\u0e42\u0e2b\u0e25\u0e14\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e44\u0e14\u0e49 \u2014 \u0e01\u0e14\u0e17\u0e35\u0e48\u0e19\u0e35\u0e48\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 SKU';
+        fb.onclick = function () {
+          if (typeof window.__packShowSkuMapper === 'function') window.__packShowSkuMapper(order);
+        };
       }
     }
 
@@ -296,7 +317,6 @@
     return box ? box.children.length : 0;
   }
 
-  /** Auto-switch order when scanning order barcode (no button needed) */
   function handleScanValue(v, silent) {
     v = String(v || '').trim();
     if (!v || v.length < 6) return false;
@@ -307,7 +327,6 @@
     var oid = norm(ord.id || ord.track || ord.packageId || '');
     var same = cur && oid && (cur === oid || cur.indexOf(oid) >= 0 || oid.indexOf(cur) >= 0);
 
-    // Same order still packing → leave for product barcode verify
     if (same && lineCount() > 0 && !linesAllDone()) {
       return false;
     }
