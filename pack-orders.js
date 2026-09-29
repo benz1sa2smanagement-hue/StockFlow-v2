@@ -1,10 +1,6 @@
 /**
- * Pack order scan flow (restored):
- * 1) Always ready for scanner
- * 2) Scan order barcode → load lines immediately
- * 3) Focus product scan
- * 4) When done → next order scan closes & auto stock-cut
- * Status bar shows what is happening / what failed
+ * Pack order scan flow:
+ * Scan order → load lines → if unmatched SKU, open mapper automatically
  */
 (function () {
   'use strict';
@@ -50,9 +46,7 @@
     if (anchor && anchor.parentNode) {
       var host = anchor.closest('.card') || anchor.parentNode;
       host.insertBefore(el, host.firstChild);
-    } else {
-      page.insertBefore(el, page.firstChild);
-    }
+    } else page.insertBefore(el, page.firstChild);
     refreshIdleStatus();
   }
 
@@ -64,8 +58,7 @@
       if (!o || !o.lines || !o.lines.length) return;
       var id = norm(o.id || o.track || o.packageId || k);
       if (!id || seen[id]) return;
-      seen[id] = 1;
-      n++;
+      seen[id] = 1; n++;
     });
     return n;
   }
@@ -74,13 +67,9 @@
     var box = document.getElementById('pack-lines');
     var nLines = box ? box.querySelectorAll('.row-q, .plu').length : 0;
     var nOrd = orderCount();
-    if (nLines > 0) {
-      setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 \u00b7 \u0e2a\u0e41\u0e01\u0e19 barcode \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e44\u0e14\u0e49\u0e40\u0e25\u0e22 \u00b7 \u0e04\u0e23\u0e1a\u0e41\u0e25\u0e49\u0e27\u0e08\u0e30\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e2d\u0e31\u0e15\u0e42\u0e19\u0e21\u0e31\u0e15\u0e34', 'info');
-    } else if (nOrd > 0) {
-      setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u00b7 \u0e21\u0e35 ' + nOrd + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e04\u0e34\u0e27 \u00b7 \u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / Tracking', 'ok');
-    } else {
-      setStatus('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e04\u0e34\u0e27 \u2014 \u0e01\u0e14\u00ab\u0e14\u0e36\u0e07\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e15\u0e2d\u0e19\u0e19\u0e35\u0e49\u00bb \u0e08\u0e32\u0e01 BigSeller \u0e01\u0e48\u0e2d\u0e19', 'warn');
-    }
+    if (nLines > 0) setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'info');
+    else if (nOrd > 0) setStatus('\u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u00b7 \u0e21\u0e35 ' + nOrd + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e04\u0e34\u0e27', 'ok');
+    else setStatus('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e01\u0e14\u0e14\u0e36\u0e07\u0e08\u0e32\u0e01 BigSeller \u0e01\u0e48\u0e2d\u0e19', 'warn');
   }
 
   function loadStore() {
@@ -97,15 +86,11 @@
     var d = loadDone();
     var now = Date.now();
     [order.id, order.track, order.packageId].forEach(function (k) {
-      k = norm(k);
-      if (k) d[k] = now;
+      k = norm(k); if (k) d[k] = now;
     });
     try { localStorage.setItem(DONE_KEY, JSON.stringify(d)); } catch (e) {}
   }
-
-  function norm(v) {
-    return String(v || '').trim().toUpperCase().replace(/\s+/g, '');
-  }
+  function norm(v) { return String(v || '').trim().toUpperCase().replace(/\s+/g, ''); }
 
   function focusEl(id) {
     var page = document.getElementById('page-pack');
@@ -113,15 +98,10 @@
     var el = document.getElementById(id);
     if (!el) return;
     try {
-      el.setAttribute('lang', 'en');
-      el.setAttribute('spellcheck', 'false');
-      el.setAttribute('autocomplete', 'off');
       el.removeAttribute('readonly');
       el.focus({ preventScroll: true });
       try { el.select(); } catch (e) {}
-    } catch (e2) {
-      try { el.focus(); } catch (e3) {}
-    }
+    } catch (e2) { try { el.focus(); } catch (e3) {} }
   }
   function focusOrder() { focusEl('pack-order'); }
   function focusScan() { focusEl('pack-scan'); }
@@ -132,17 +112,14 @@
     var box = document.getElementById('pack-lines');
     var n = box ? box.querySelectorAll('.row-q, .plu').length : 0;
     if (n > 0) focusScanSoon();
-    else {
-      [0, 80, 200, 500].forEach(function (ms) { setTimeout(focusOrder, ms); });
-    }
+    else [0, 80, 200, 500].forEach(function (ms) { setTimeout(focusOrder, ms); });
   }
 
   function indexOrder(store, order) {
     if (!order || !order.lines || !order.lines.length) return;
     var keys = [];
     [order.id, order.track, order.packageId].forEach(function (k) {
-      k = norm(k);
-      if (k && keys.indexOf(k) < 0) keys.push(k);
+      k = norm(k); if (k && keys.indexOf(k) < 0) keys.push(k);
     });
     keys.slice().forEach(function (k) {
       var k2 = k.replace(/[^A-Z0-9]/g, '');
@@ -159,10 +136,7 @@
     var store = loadStore();
     var n = 0;
     (orders || []).forEach(function (o) {
-      if (o && o.lines && o.lines.length) {
-        indexOrder(store, o);
-        n++;
-      }
+      if (o && o.lines && o.lines.length) { indexOrder(store, o); n++; }
     });
     saveStore(store);
     setStatus('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01 ' + n + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32', 'ok');
@@ -175,10 +149,7 @@
     function add(x) {
       x = String(x || '').trim();
       if (!x || x.length < 3) return;
-      var k = norm(x);
-      if (seen[k]) return;
-      seen[k] = 1;
-      out.push(x);
+      var k = norm(x); if (seen[k]) return; seen[k] = 1; out.push(x);
     }
     var v = String(raw || '').trim();
     if (!v) return out;
@@ -186,9 +157,7 @@
     if (/^https?:\/\//i.test(v) || /spx\.|shopee|lazada|tiktok/i.test(v)) {
       try {
         var u = new URL(/^https?:\/\//i.test(v) ? v : 'https://' + v);
-        u.pathname.split('/').forEach(function (p) {
-          try { add(decodeURIComponent(p)); } catch (e) { add(p); }
-        });
+        u.pathname.split('/').forEach(function (p) { try { add(decodeURIComponent(p)); } catch (e) { add(p); } });
         u.searchParams.forEach(function (val) { add(val); });
       } catch (e) {}
     }
@@ -221,6 +190,38 @@
     return null;
   }
 
+  function countUnmatched(order) {
+    if (!order || !order.lines) return 0;
+    var n = 0;
+    order.lines.forEach(function (l) {
+      if (!l) return;
+      if (l.matched !== true || l.needMap) n++;
+    });
+    return n;
+  }
+
+  function openMapperSoon(order) {
+    var tries = 0;
+    function go() {
+      tries++;
+      if (typeof window.__packShowSkuMapper === 'function') {
+        try {
+          var ret = window.__packShowSkuMapper(order);
+          if (ret && typeof ret.then === 'function') {
+            ret.then(function (o) {
+              if (o && countUnmatched(o) === 0) loadLinesIntoPack(o);
+              else if (o) loadLinesIntoPack(o);
+            }).catch(function () {});
+          }
+        } catch (e) {}
+        setStatus('\u0e21\u0e35 SKU \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 \u2014 \u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e19\u0e04\u0e25\u0e31\u0e07\u0e41\u0e25\u0e49\u0e27\u0e01\u0e14\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01', 'warn');
+        return;
+      }
+      if (tries < 30) setTimeout(go, 150);
+    }
+    setTimeout(go, 100);
+  }
+
   function loadLinesIntoPack(order) {
     if (!order || !order.lines || !order.lines.length) {
       setStatus('\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e21\u0e35\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', 'bad');
@@ -246,13 +247,7 @@
     var addBtn = document.getElementById('pack-add-btn');
     var added = 0;
     var names = [];
-    var unmatchedN = 0;
-    var missingUi = !(sel && addBtn && qtyEl);
-
-    if (missingUi) {
-      setStatus('\u0e44\u0e21\u0e48\u0e1e\u0e1a UI \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 (pack-add-sku) \u2014 \u0e23\u0e35\u0e40\u0e1f\u0e23\u0e0a\u0e2b\u0e19\u0e49\u0e32', 'bad');
-      toast('\u0e42\u0e2b\u0e25\u0e14 UI \u0e41\u0e1e\u0e47\u0e01\u0e44\u0e21\u0e48\u0e04\u0e23\u0e1a \u2014 \u0e23\u0e35\u0e40\u0e1f\u0e23\u0e0a\u0e2b\u0e19\u0e49\u0e32');
-    }
+    var unmatchedN = countUnmatched(order);
 
     (order.lines || []).forEach(function (l) {
       if (!l) return;
@@ -260,7 +255,6 @@
       var qty = parseInt(l.qty, 10) || 1;
       var name = l.name || skuId || '\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';
       if (!skuId) skuId = 'UNMATCHED_' + String(name).slice(0, 20);
-      if (l.matched === false || l.needMap) unmatchedN++;
 
       if (sel && addBtn && qtyEl) {
         var has = false;
@@ -270,7 +264,7 @@
         if (!has) {
           var opt = document.createElement('option');
           opt.value = skuId;
-          opt.textContent = (l.matched === false ? '[?] ' : '') + name + (l.unitSku && l.unitSku !== name ? ' \u00b7 ' + l.unitSku : '');
+          opt.textContent = (l.matched !== true ? '[?] ' : '') + name + (l.unitSku && l.unitSku !== name ? ' \u00b7 ' + l.unitSku : '');
           sel.appendChild(opt);
         }
         sel.value = skuId;
@@ -287,29 +281,18 @@
         fb.style.color = unmatchedN ? '#92400e' : 'var(--ok, #15803d)';
         fb.textContent = unmatchedN
           ? ('\u26a0 \u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u00b7 \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 ' + unmatchedN + ' \u2014 \u0e01\u0e14\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48')
-          : ('\u2713 \u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u2014 \u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e44\u0e14\u0e49');
+          : ('\u2713 \u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23');
         fb.style.cursor = unmatchedN ? 'pointer' : 'default';
-        fb.onclick = unmatchedN ? function () {
-          if (typeof window.__packShowSkuMapper === 'function') window.__packShowSkuMapper(order);
-        } : null;
-      } else {
-        fb.style.background = 'var(--bad-soft, #fee2e2)';
-        fb.style.color = 'var(--bad, #b91c1c)';
-        fb.textContent = '\u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08 \u2014 \u0e15\u0e23\u0e27\u0e08 SKU / UI';
+        fb.onclick = unmatchedN ? function () { openMapperSoon(order); } : null;
       }
     }
 
     if (added > 0) {
-      setStatus('\u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u2014 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', unmatchedN ? 'warn' : 'ok');
-      toast('\u0e42\u0e2b\u0e25\u0e14 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23: ' + names.slice(0, 2).join(', ') + (names.length > 2 ? '\u2026' : ''));
-      if (unmatchedN > 0 && typeof window.__packShowSkuMapper === 'function') {
-        setTimeout(function () {
-          try { window.__packShowSkuMapper(order); } catch (eM) {}
-        }, 400);
-      }
+      setStatus('\u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23' + (unmatchedN ? ' \u00b7 \u0e15\u0e49\u0e2d\u0e07\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 ' + unmatchedN + ' SKU' : ''), unmatchedN ? 'warn' : 'ok');
+      toast('\u0e42\u0e2b\u0e25\u0e14 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23');
+      if (unmatchedN > 0) openMapperSoon(order);
     } else {
-      setStatus('\u0e2a\u0e41\u0e01\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e41\u0e25\u0e49\u0e27 \u0e41\u0e15\u0e48\u0e44\u0e21\u0e48\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e44\u0e14\u0e49', 'bad');
-      toast('\u0e44\u0e21\u0e48\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e42\u0e2b\u0e25\u0e14\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32');
+      setStatus('\u0e44\u0e21\u0e48\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e44\u0e14\u0e49', 'bad');
     }
 
     focusScanSoon();
@@ -319,24 +302,22 @@
   function activateOrder(order) {
     if (!order || !order.lines || !order.lines.length) {
       setStatus('\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e21\u0e35\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23', 'bad');
-      toast('\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e21\u0e35\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32');
       return false;
     }
     lastTry = { v: norm(order.id || order.track || ''), t: Date.now() };
     setStatus('\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u2026', 'info');
 
+    function afterExpand(o) {
+      o = o || order;
+      loadLinesIntoPack(o);
+      // loadLinesIntoPack already calls openMapperSoon if needed
+    }
+
     if (typeof window.__packExpandOrderSilent === 'function') {
-      window.__packExpandOrderSilent(order).then(function (o) {
-        loadLinesIntoPack(o || order);
-      }).catch(function () {
-        loadLinesIntoPack(order);
-      });
+      window.__packExpandOrderSilent(order).then(afterExpand).catch(function () { afterExpand(order); });
       return true;
     }
-    if (typeof window.__packExpandLinesOnly === 'function') {
-      try { window.__packExpandLinesOnly(order); } catch (e) {}
-    }
-    loadLinesIntoPack(order);
+    afterExpand(order);
     return true;
   }
 
@@ -346,18 +327,16 @@
     var now = Date.now();
     if (lastTry.v === norm(v) && now - lastTry.t < 500) return true;
 
-    var store = loadStore();
-    var nKeys = Object.keys(store).length;
-    if (!nKeys) {
-      setStatus('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e19\u0e04\u0e34\u0e27 \u2014 \u0e01\u0e14\u0e14\u0e36\u0e07\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e08\u0e32\u0e01 BigSeller \u0e01\u0e48\u0e2d\u0e19', 'bad');
-      if (!silent) toast('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e14\u0e36\u0e07\u0e08\u0e32\u0e01 BigSeller \u0e01\u0e48\u0e2d\u0e19');
+    if (!Object.keys(loadStore()).length) {
+      setStatus('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e14\u0e36\u0e07\u0e08\u0e32\u0e01 BigSeller \u0e01\u0e48\u0e2d\u0e19', 'bad');
+      if (!silent) toast('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c');
       return false;
     }
 
     var ord = findOrder(v);
     if (!ord) {
       var short = v.length > 36 ? v.slice(0, 36) + '\u2026' : v;
-      setStatus('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c: ' + short + ' \u00b7 \u0e43\u0e19\u0e04\u0e34\u0e27 ' + orderCount() + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c', 'bad');
+      setStatus('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c: ' + short, 'bad');
       if (!silent) toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c: ' + short);
       return false;
     }
@@ -380,7 +359,6 @@
     var o = document.getElementById('pack-order');
     return norm(o && o.value || '');
   }
-
   function linesAllDone() {
     var box = document.getElementById('pack-lines');
     if (!box) return true;
@@ -402,33 +380,23 @@
     }
     return true;
   }
-
   function lineCount() {
     var box = document.getElementById('pack-lines');
     if (!box) return 0;
     var n = box.querySelectorAll('.row-q').length;
-    if (n) return n;
-    return box.querySelectorAll('.plu').length;
+    return n || box.querySelectorAll('.plu').length;
   }
 
-  function handleScanValue(v, silent) {
+  function handleScanValue(v) {
     v = String(v || '').trim();
     if (!v || v.length < 4) return false;
     var ord = findOrder(v);
     if (!ord) return false;
-
     var cur = currentOrderId();
     var oid = norm(ord.id || ord.track || ord.packageId || '');
     var same = cur && oid && (cur === oid || cur.indexOf(oid) >= 0 || oid.indexOf(cur) >= 0);
-
-    if (same && lineCount() > 0 && !linesAllDone()) {
-      return false;
-    }
-
-    if (cur && !same && lineCount() > 0 && linesAllDone()) {
-      markDone({ id: cur, track: cur, packageId: cur });
-    }
-
+    if (same && lineCount() > 0 && !linesAllDone()) return false;
+    if (cur && !same && lineCount() > 0 && linesAllDone()) markDone({ id: cur, track: cur });
     return activateOrder(ord);
   }
 
@@ -445,22 +413,14 @@
     var orderEl = document.getElementById('pack-order');
     if (!orderEl || orderEl.getAttribute('data-bs-order-bound')) return;
     orderEl.setAttribute('data-bs-order-bound', '1');
-    orderEl.setAttribute('lang', 'en');
-    orderEl.setAttribute('spellcheck', 'false');
-    orderEl.setAttribute('autocomplete', 'off');
-    orderEl.setAttribute('placeholder', '\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / Order ID / Tracking');
-
+    orderEl.setAttribute('placeholder', '\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / Tracking');
     orderEl.addEventListener('input', function () {
       if (orderTimer) clearTimeout(orderTimer);
-      orderTimer = setTimeout(function () {
-        onOrderValue(orderEl.value, false);
-      }, 80);
+      orderTimer = setTimeout(function () { onOrderValue(orderEl.value, false); }, 80);
     });
-
     orderEl.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      e.stopPropagation();
       onOrderValue(orderEl.value, true);
     });
   }
@@ -469,27 +429,19 @@
     var input = document.getElementById('pack-scan');
     if (!input || input.getAttribute('data-bs-bound-v5')) return;
     input.setAttribute('data-bs-bound-v5', '1');
-    input.setAttribute('lang', 'en');
-    input.setAttribute('spellcheck', 'false');
-    input.setAttribute('autocomplete', 'off');
-
     input.addEventListener('input', function () {
       if (scanTimer) clearTimeout(scanTimer);
       scanTimer = setTimeout(function () {
         var v = (input.value || '').trim();
         if (v.length < 4) return;
-        if (handleScanValue(v, false)) {
-          input.value = '';
-          setTimeout(focusScan, 60);
-        }
+        if (handleScanValue(v)) { input.value = ''; setTimeout(focusScan, 60); }
       }, 80);
     });
-
     input.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       var v = (input.value || '').trim();
       if (!v) return;
-      if (handleScanValue(v, false)) {
+      if (handleScanValue(v)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         input.value = '';
@@ -502,14 +454,10 @@
     if (e.key !== 'Enter') return;
     var input = e.target;
     if (!input) return;
-    if (input.id === 'pack-order') {
-      e.preventDefault();
-      onOrderValue(input.value, true);
-      return;
-    }
+    if (input.id === 'pack-order') { e.preventDefault(); onOrderValue(input.value, true); }
     if (input.id === 'pack-scan') {
       var v = (input.value || '').trim();
-      if (v && handleScanValue(v, false)) {
+      if (v && handleScanValue(v)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         input.value = '';
@@ -529,22 +477,13 @@
     var page = document.getElementById('page-pack');
     if (!page || !page.classList.contains('active')) return;
     var ae = document.activeElement;
-    if (ae && (ae.id === 'pack-scan' || ae.id === 'pack-order' || ae.id === 'pack-csv-file' ||
-               ae.id === 'pack-add-sku' || ae.id === 'pack-add-qty' || ae.id === 'pack-session-id' ||
-               ae.id === 'pack-map-search')) return;
-    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'BUTTON')) return;
+    if (ae && (ae.id === 'pack-scan' || ae.id === 'pack-order' || ae.tagName === 'SELECT' || ae.tagName === 'INPUT' || ae.tagName === 'BUTTON')) return;
     focusReady();
-    if (!lastStatus || lastStatus.indexOf('\u0e1e\u0e23\u0e49\u0e2d\u0e21') === 0 || lastStatus.indexOf('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35') === 0) {
-      refreshIdleStatus();
-    }
   }, 600);
 
   document.addEventListener('click', function (e) {
     var btn = e.target && e.target.closest && e.target.closest('.ni[data-page="pack"]');
-    if (!btn) return;
-    setTimeout(wireAll, 100);
-    setTimeout(focusReady, 250);
-    setTimeout(refreshIdleStatus, 400);
+    if (btn) { setTimeout(wireAll, 100); setTimeout(focusReady, 250); }
   }, true);
 
   document.addEventListener('click', function (e) {
@@ -555,7 +494,6 @@
     setTimeout(function () {
       setStatus('\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27 \u2014 \u0e1e\u0e23\u0e49\u0e2d\u0e21\u0e2a\u0e41\u0e01\u0e19\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e16\u0e31\u0e14\u0e44\u0e1b', 'ok');
       focusOrder();
-      if (typeof window.__packQueueRefresh === 'function') window.__packQueueRefresh();
     }, 800);
   }, true);
 
