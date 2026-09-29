@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         StockFlow BigSeller Bridge
 // @namespace    https://benz1sa2smanagement-hue.github.io/StockFlow-v2/
-// @version      1.3.6
+// @version      1.3.7
 // @description  Auto-pair + auto-send BigSeller orders to StockFlow via Firebase
 // @match        *://*.bigseller.com/*
 // @match        *://bigseller.com/*
@@ -119,8 +119,8 @@
     if (captured.length) {
       var o = captured[0];
       sample = {
-        id: o.id || '', track: o.track || '', platform: o.platform || '',
-        printStatus: o.printStatus || '', shipStatus: o.shipStatus || '',
+        id: o.id || '', track: o.track || '', platformOrder: o.platformOrder || '',
+        platform: o.platform || '', printStatus: o.printStatus || '', shipStatus: o.shipStatus || '',
         printedAt: o.printedAt || null, orderAt: o.orderAt || null,
         lines: (o.lines && o.lines.length) || 0
       };
@@ -130,7 +130,7 @@
       page: location.pathname + location.search,
       message: msg || '',
       href: location.href,
-      ver: '1.3.6',
+      ver: '1.3.7',
       captured: captured.length,
       jsonHits: lastJsonHits,
       sample: sample
@@ -145,6 +145,7 @@
       'packageId', 'package_id', 'packageNo', 'package_no', 'pkgId', 'bsCode', 'bs_code',
       'orderId', 'order_id', 'orderNo', 'order_no', 'orderNumber', 'order_number',
       'platformOrderId', 'platform_order_id', 'platformOrderNo', 'platform_order_no',
+      'orderSn', 'ordersn', 'shopOrderNo',
       'trackingNumber', 'tracking_number', 'trackingNo', 'tracking_no',
       'shipmentId', 'shipment_id', 'expressNo', 'waybillNo', 'waybill_no'
     ];
@@ -200,6 +201,19 @@
     return [{ skuId: sku, name: name || sku, qty: qty, unitSku: sku, barcode: '', matched: false }];
   }
 
+  function extractPlatformOrder(data) {
+    return norm(
+      data.platformOrderId || data.platform_order_id || data.platformOrderNo || data.platform_order_no ||
+      data.orderSn || data.ordersn || data.shopOrderNo || data.shop_order_no || ''
+    );
+  }
+  function extractOrderNo(data) {
+    return norm(
+      data.orderNo || data.order_no || data.orderNumber || data.order_number ||
+      data.orderId || data.order_id || ''
+    );
+  }
+
   function extractOrdersFromJson(data, depth) {
     depth = depth || 0;
     if (depth > 8 || data == null) return [];
@@ -217,8 +231,10 @@
       if (lines.length) {
         out.push({
           id: String(id),
-          track: norm(data.trackingNumber || data.tracking_number || data.trackingNo || data.tracking_no || data.expressNo || ''),
+          track: norm(data.trackingNumber || data.tracking_number || data.trackingNo || data.tracking_no || data.expressNo || data.waybillNo || ''),
           packageId: norm(data.packageId || data.package_id || data.packageNo || data.bsCode || ''),
+          orderNo: extractOrderNo(data),
+          platformOrder: extractPlatformOrder(data),
           platform: norm(data.platform || data.channel || data.shopName || data.shop_name || data.marketplace || data.site || data.platformName || ''),
           printStatus: norm(data.printStatus || data.labelPrintStatus || data.print_status || data.isPrint || data.printed || data.printFlag || ''),
           shipStatus: norm(data.shippingStatus || data.shipStatus || data.packageStatus || data.orderStatus || data.statusName || data.status || ''),
@@ -237,6 +253,8 @@
           id: String(id),
           track: norm(data.trackingNumber || data.tracking_number || data.trackingNo || data.tracking_no || data.expressNo || ''),
           packageId: norm(data.packageId || data.package_id || data.packageNo || data.bsCode || ''),
+          orderNo: extractOrderNo(data),
+          platformOrder: extractPlatformOrder(data),
           platform: norm(data.platform || data.channel || data.shopName || data.shop_name || data.marketplace || ''),
           printStatus: norm(data.printStatus || data.isPrint || data.labelPrintStatus || ''),
           shipStatus: norm(data.shippingStatus || data.orderStatus || data.statusName || data.status || ''),
@@ -266,9 +284,11 @@
     if (!o) return '';
     var pkg = String(o.packageId || '').trim().toUpperCase().replace(/\s+/g, '');
     var track = String(o.track || '').trim().toUpperCase().replace(/\s+/g, '');
+    var po = String(o.platformOrder || '').trim().toUpperCase().replace(/\s+/g, '');
     var id = String(o.id || '').trim().toUpperCase().replace(/\s+/g, '');
     if (pkg) return 'P:' + pkg;
     if (track) return 'T:' + track;
+    if (po) return 'O:' + po;
     if (id) return 'I:' + id;
     return '';
   }
@@ -281,12 +301,9 @@
       var key = orderKey(o);
       if (!key) { skipped++; return; }
       var prev = map[key];
-      if (!prev) {
-        map[key] = o;
-        return;
-      }
+      if (!prev) { map[key] = o; return; }
       var score = function (x) {
-        return (x.lines ? x.lines.length : 0) * 10 + (x.track ? 3 : 0) + (x.packageId ? 2 : 0) + (x.platform ? 1 : 0);
+        return (x.lines ? x.lines.length : 0) * 10 + (x.track ? 3 : 0) + (x.packageId ? 2 : 0) + (x.platformOrder ? 2 : 0) + (x.platform ? 1 : 0);
       };
       if (score(o) >= score(prev)) map[key] = o;
     });
@@ -310,7 +327,7 @@
       var before = captured.length;
       captured = mergeUnique(captured.concat(found));
       var added = captured.length - before;
-      console.log('[StockFlow Bridge] found=' + found.length + ' added=' + added + ' total=' + captured.length, found[0] && (found[0].packageId || found[0].id));
+      console.log('[StockFlow Bridge] found=' + found.length + ' added=' + added + ' total=' + captured.length, found[0] && (found[0].platformOrder || found[0].packageId || found[0].id));
       heartbeat('cached ' + captured.length);
       showBadge('cached ' + captured.length + (added ? ' (+' + added + ')' : ''));
       try { autoSendIfNeeded(); } catch (eA) {}
@@ -399,10 +416,11 @@
     if (!base) return Promise.resolve();
     var payload = {};
     orderList.forEach(function (o) {
-      var id = String(o.packageId || o.track || o.id || '').toUpperCase().replace(/\s+/g, '');
+      var id = String(o.packageId || o.platformOrder || o.track || o.orderNo || o.id || '').toUpperCase().replace(/\s+/g, '');
       if (!id) return;
       payload[id] = {
         id: o.id || '', track: o.track || '', packageId: o.packageId || '',
+        orderNo: o.orderNo || '', platformOrder: o.platformOrder || '',
         platform: o.platform || '', lines: o.lines,
         updatedAt: Date.now(), source: 'bigseller-bridge'
       };
@@ -478,65 +496,54 @@
 
   function pollBridge() {
     var base = pathBase();
-    if (!base) return;
+    if (!base) {
+      autoPairFromStockFlow();
+      return;
+    }
     fbGet(base + '/bsBridge/pullRequest').then(function (req) {
       if (!req || !req.at) return;
       if (req.at <= lastPullHandled) return;
-      if (req.status === 'done') return;
       lastPullHandled = req.at;
-      heartbeat('pulling...');
-      doPull(req.at, req).then(function () {
-        return fbPut(base + '/bsBridge/pullRequest', Object.assign({}, req, { status: 'done', doneAt: Date.now() }));
-      }).catch(function () { lastPullHandled = 0; });
+      showBadge('Pulling…');
+      return doPull(req.at, req);
     }).catch(function () {});
   }
 
   function showBadge(msg) {
-    var m = document.getElementById('sf-bs-msg');
-    if (m) m.textContent = msg;
+    var el = document.getElementById('sf-bridge-panel');
+    if (!el) return;
+    var b = el.querySelector('.sf-badge');
+    if (b) b.textContent = msg || '';
   }
 
-  function ensureFloatingUi() {
-    if (document.getElementById('sf-bs-float')) return true;
-    var host = document.body || document.documentElement;
-    if (!host) return false;
+  function ensurePanel() {
+    if (document.getElementById('sf-bridge-panel')) return;
+    if (!document.body) return;
     var el = document.createElement('div');
-    el.id = 'sf-bs-float';
-    el.setAttribute('data-sf-bridge', '1.3.6');
-    el.style.cssText = 'all:initial;position:fixed;z-index:2147483647;right:12px;bottom:12px;background:#0C0E12;color:#fff;padding:12px 14px;border-radius:14px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.45);max-width:300px;min-width:220px;border:2px solid #2563eb;pointer-events:auto';
-    el.innerHTML =
-      '<div style="all:initial;display:block;font:700 13px system-ui,sans-serif;color:#fff;margin-bottom:6px">StockFlow Bridge v1.3.6</div>' +
-      '<div id="sf-bs-msg" style="all:initial;display:block;font:12px system-ui,sans-serif;color:#cbd5e1;margin-bottom:8px;line-height:1.4">Starting\u2026</div>' +
-      '<div style="all:initial;display:block;font:11px system-ui,sans-serif;color:#94a3b8">Open New + In Process order pages to capture</div>';
-    host.appendChild(el);
-    return true;
-  }
-
-  function tickUi() {
-    uiTries++;
-    if (!ensureFloatingUi() && uiTries < 40) setTimeout(tickUi, 250);
+    el.id = 'sf-bridge-panel';
+    el.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:2147483646;background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:12px;font:12px/1.4 system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.35);max-width:260px';
+    el.innerHTML = '<div style="font-weight:700;margin-bottom:4px">StockFlow Bridge v1.3.7</div>' +
+      '<div class="sf-badge" style="opacity:.9">starting…</div>';
+    document.body.appendChild(el);
+    uiTries = 0;
   }
 
   function boot() {
     hookNetwork();
-    tickUi();
+    ensurePanel();
+    autoPairFromStockFlow().then(function () {
+      heartbeat('online');
+      showBadge(getCfg().wsKey ? ('WS ' + getCfg().wsKey + ' · cached ' + captured.length) : 'waiting pair…');
+    });
     setInterval(function () {
+      ensurePanel();
       autoPairFromStockFlow();
+      heartbeat();
       pollBridge();
-      heartbeat('ok');
-      autoSendIfNeeded();
     }, 4000);
-    autoPairFromStockFlow();
-    setTimeout(function () { heartbeat('boot'); }, 800);
   }
 
-  hookNetwork();
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-  setTimeout(tickUi, 100);
-  setTimeout(tickUi, 500);
-  setTimeout(tickUi, 1500);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  setTimeout(boot, 800);
 })();
