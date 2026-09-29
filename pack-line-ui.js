@@ -1,5 +1,6 @@
 /**
  * Big pack-line cards: product name + qty + unit
+ * Keeps data-* attrs so pack-visual can show remaining images
  */
 (function () {
   'use strict';
@@ -37,7 +38,8 @@
       '#pack-lines .plu-sub{font-size:14px;font-weight:700;color:var(--ink2);display:flex;flex-wrap:wrap;gap:10px;align-items:center}' +
       '#pack-lines .plu-sku{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:var(--ink3)}' +
       '#pack-lines .plu-prog{font-size:15px;font-weight:800}' +
-      '#pack-lines-card .card-h{font-size:16px;font-weight:800}';
+      '#pack-lines-card .card-h{font-size:16px;font-weight:800}' +
+      '#pack-lines .plu .row-n,#pack-lines .plu .row-m,#pack-lines .plu .row-q{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}';
     document.head.appendChild(s);
   }
 
@@ -60,7 +62,15 @@
       var unit = parseUnit(sku, name);
       var done = remain === 0 && qty > 0;
       html.push(
-        '<div class="plu' + (done ? ' done' : '') + '">' +
+        '<div class="plu' + (done ? ' done' : '') + '"' +
+          ' data-sku-id="' + esc(sku) + '"' +
+          ' data-sku-name="' + esc(name) + '"' +
+          ' data-scanned="' + scanned + '"' +
+          ' data-qty="' + qty + '"' +
+          ' data-remain="' + remain + '">' +
+          '<span class="row-n">' + esc(name) + '</span>' +
+          '<span class="row-m">' + esc(sku) + '</span>' +
+          '<span class="row-q">' + scanned + '/' + qty + '</span>' +
           '<div class="plu-top">' +
             '<div class="plu-name">' + esc(name || sku) + '</div>' +
             '<div class="plu-qty"><span class="plu-num">' + qty + '</span><span class="plu-unit">' + unit + '</span></div>' +
@@ -76,6 +86,9 @@
       );
     });
     box.innerHTML = html.join('');
+    if (typeof window.__packEnhanceVisual === 'function') {
+      setTimeout(function () { window.__packEnhanceVisual(); }, 20);
+    }
   }
 
   var mo = new MutationObserver(function () {
