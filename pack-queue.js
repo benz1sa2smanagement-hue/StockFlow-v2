@@ -1,6 +1,6 @@
 /**
- * Pack order queue: pending + done lists, search, delete, warn if already cut
- * Restored + works with pack-queue-ui.js filters
+ * Pack order queue: pending + done — no flicker (render only on data change)
+ * Sections: BigSeller pulled | waiting to pack | done
  */
 (function () {
   'use strict';
@@ -8,6 +8,11 @@
   var DONE_KEY = 'sf_bs_orders_done_v1';
   var filterPending = '';
   var filterDone = '';
+  var lastSig = '';
+  var lastPendingHtml = '';
+  var lastDoneHtml = '';
+  var uiBuilt = false;
+
   function toast(msg) {
     var w = document.getElementById('toast-wrap');
     if (!w) return;
@@ -29,6 +34,9 @@
   }
   function norm(v) {
     return String(v || '').trim().toUpperCase().replace(/\s+/g, '');
+  }
+  function dataSig() {
+    return (localStorage.getItem(KEY) || '') + '|' + (localStorage.getItem(DONE_KEY) || '') + '|' + filterPending + '|' + filterDone;
   }
   function isDoneCode(code) {
     var d = loadDone();
@@ -59,7 +67,9 @@
       o.lines.forEach(function (l) { qty += parseInt(l.qty, 10) || 0; });
       list.push({
         key: id, id: o.id || '', track: o.track || '', packageId: o.packageId || '',
-        platform: o.platform || '', lineCount: o.lines.length, qty: qty, order: o
+        platform: o.platform || '', lineCount: o.lines.length, qty: qty, order: o,
+        pulledAt: Number(o.pulledAt || o.updatedAt || 0) || 0,
+        source: o.source || ''
       });
     });
     list.sort(function (a, b) {
@@ -122,7 +132,9 @@
     });
     saveStore(store);
     toast('\u0e25\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e2d\u0e2d\u0e01\u0e08\u0e32\u0e01\u0e04\u0e34\u0e27\u0e41\u0e25\u0e49\u0e27');
-    renderAll();
+    lastSig = '';
+    lastPendingHtml = '';
+    renderAll(true);
   }
   function showDoneAlert(code) {
     toast('\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27: ' + code);
@@ -152,7 +164,7 @@
     var page = document.getElementById('page-pack');
     if (!page) return false;
     if (document.getElementById('pack-queue-panel')) {
-      renderAll();
+      uiBuilt = true;
       return true;
     }
     var box = document.createElement('div');
@@ -163,9 +175,11 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">' +
       '<div style="font-size:14px;font-weight:800">\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e04\u0e49\u0e32\u0e07\u0e43\u0e19\u0e04\u0e34\u0e27\u0e41\u0e1e\u0e47\u0e01</div>' +
       '<button type="button" id="pack-queue-refresh" style="padding:6px 10px;border-radius:10px;border:1px solid var(--line2,#d1d5db);background:#fff;font-size:12px;cursor:pointer">\u0e23\u0e35\u0e40\u0e1f\u0e23\u0e0a</button></div>' +
+      '<div id="pack-queue-stats" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>' +
       '<input id="pack-queue-search" type="search" placeholder="\u0e04\u0e49\u0e19\u0e2b\u0e32 Tracking / Order ID\u2026" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:12px;border:1px solid var(--line2,#d1d5db);font-size:13px;margin-bottom:8px">' +
-      '<div id="pack-queue-count" style="font-size:12px;color:var(--ink3);margin-bottom:8px"></div>' +
-      '<div id="pack-queue-list" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto;margin-bottom:14px"></div>' +
+      '<div id="pack-queue-sections" style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">' +
+      '<div id="pack-sec-bs" style="display:none"></div>' +
+      '<div id="pack-sec-pending"></div></div>' +
       '<div style="border-top:1px solid var(--line,#e5e7eb);padding-top:12px">' +
       '<div style="font-size:14px;font-weight:800;margin-bottom:8px">\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e17\u0e35\u0e48\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27</div>' +
       '<input id="pack-done-search" type="search" placeholder="\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e17\u0e35\u0e48\u0e15\u0e31\u0e14\u0e41\u0e25\u0e49\u0e27\u2026" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:12px;border:1px solid var(--line2,#d1d5db);font-size:13px;margin-bottom:8px">' +
@@ -176,53 +190,72 @@
     else page.insertBefore(box, page.firstChild);
     document.getElementById('pack-queue-refresh').addEventListener('click', function () {
       if (typeof window.__packPullOrdersCloud === 'function') window.__packPullOrdersCloud();
-      renderAll();
+      lastSig = ''; lastPendingHtml = ''; lastDoneHtml = '';
+      renderAll(true);
       toast('\u0e23\u0e35\u0e40\u0e1f\u0e23\u0e0a\u0e04\u0e34\u0e27\u0e41\u0e25\u0e49\u0e27');
     });
     document.getElementById('pack-queue-search').addEventListener('input', function (e) {
       filterPending = e.target.value || '';
-      renderPending();
+      lastSig = ''; lastPendingHtml = '';
+      renderAll(true);
     });
     document.getElementById('pack-done-search').addEventListener('input', function (e) {
       filterDone = e.target.value || '';
-      renderDone();
+      lastSig = ''; lastDoneHtml = '';
+      renderAll(true);
     });
+    uiBuilt = true;
     return true;
   }
-  function renderPending() {
-    var listEl = document.getElementById('pack-queue-list');
-    var countEl = document.getElementById('pack-queue-count');
-    if (!listEl) return;
-    var list = uniquePending().filter(function (item) {
-      return matchFilter([item.track, item.id, item.packageId, item.platform].join(' '), filterPending);
-    });
-    if (countEl) {
-      countEl.textContent = list.length
-        ? ('\u0e41\u0e2a\u0e14\u0e07 ' + list.length + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c')
-        : (filterPending ? '\u0e44\u0e21\u0e48\u0e1e\u0e1a' : '\u0e04\u0e34\u0e27\u0e27\u0e48\u0e32\u0e07');
+  function isRecentBs(item) {
+    var o = item.order || item;
+    var src = String((o && o.source) || item.source || '').toLowerCase();
+    var fromBs = src.indexOf('bigseller') >= 0 || src === 'bridge';
+    var at = Number(item.pulledAt || (o && (o.pulledAt || o.updatedAt)) || 0) || 0;
+    return fromBs || (at && Date.now() - at < 6 * 60 * 60 * 1000);
+  }
+  function timeAgo(ts) {
+    if (!ts) return '';
+    var sec = Math.floor((Date.now() - ts) / 1000);
+    if (sec < 60) return '\u0e40\u0e21\u0e37\u0e48\u0e2d\u0e2a\u0e31\u0e01\u0e04\u0e23\u0e39\u0e48';
+    if (sec < 3600) return Math.floor(sec / 60) + ' \u0e19\u0e32\u0e17\u0e35\u0e41\u0e25\u0e49\u0e27';
+    if (sec < 86400) return Math.floor(sec / 3600) + ' \u0e0a\u0e21. \u0e41\u0e25\u0e49\u0e27';
+    return new Date(ts).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+  }
+  function itemRow(item, kind) {
+    var label = item.track || item.id || item.packageId || item.key;
+    var sub = (item.platform ? item.platform + ' \u00b7 ' : '') + item.lineCount + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u00b7 ' + item.qty + ' \u0e0a\u0e34\u0e49\u0e19';
+    var border, bg, badge;
+    if (kind === 'bs') {
+      border = '2px solid #f59e0b'; bg = '#fffbeb';
+      badge = '<span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:700">\u0e14\u0e36\u0e07 BigSeller ' + timeAgo(item.pulledAt) + '</span>';
+    } else {
+      border = '1px solid #c7d2fe'; bg = '#eef2ff';
+      badge = '<span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:700">\u0e23\u0e2d\u0e41\u0e1e\u0e47\u0e01</span>';
     }
-    if (!list.length) {
-      listEl.innerHTML = '<div style="font-size:12px;color:var(--ink3);padding:6px 0">\u2014</div>';
-      return;
-    }
-    listEl.innerHTML = list.map(function (item) {
-      var label = item.track || item.id || item.packageId || item.key;
-      var sub = (item.platform ? item.platform + ' \u00b7 ' : '') + item.lineCount + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u00b7 ' + item.qty + ' \u0e0a\u0e34\u0e49\u0e19';
-      return (
-        '<div style="display:flex;gap:8px;align-items:stretch">' +
-        '<button type="button" class="pack-queue-item" data-key="' + item.key.replace(/\"/g, '') + '" style="flex:1;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit">' +
-        '<div style="font-weight:700;font-size:13px;font-family:IBM Plex Mono,monospace">' + label + '</div>' +
-        '<div style="font-size:11px;color:var(--ink3);margin-top:2px">' + sub + '</div></button>' +
-        '<button type="button" class="pack-queue-del" data-key="' + item.key.replace(/\"/g, '') + '" style="width:44px;border-radius:12px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;cursor:pointer;font-size:16px">\u00d7</button></div>'
-      );
-    }).join('');
-    listEl.querySelectorAll('.pack-queue-item').forEach(function (btn) {
+    var k = String(item.key).replace(/"/g, '');
+    return (
+      '<div style="display:flex;gap:8px;align-items:stretch" data-qkey="' + k + '">' +
+      '<button type="button" class="pack-queue-item" data-key="' + k + '" style="flex:1;text-align:left;padding:10px 12px;border-radius:12px;border:' + border + ';background:' + bg + ';cursor:pointer;font:inherit">' +
+      '<div style="font-weight:700;font-size:13px;font-family:IBM Plex Mono,monospace">' + String(label).replace(/</g, '') + '</div>' +
+      '<div style="font-size:11px;color:var(--ink3);margin-top:2px">' + sub + '</div>' + badge +
+      '</button>' +
+      '<button type="button" class="pack-queue-del" data-key="' + k + '" style="width:44px;border-radius:12px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;cursor:pointer;font-size:16px">\u00d7</button></div>'
+    );
+  }
+  function bindClicks(root) {
+    if (!root) return;
+    root.querySelectorAll('.pack-queue-item').forEach(function (btn) {
+      if (btn._pqBound) return;
+      btn._pqBound = true;
       btn.addEventListener('click', function () {
         var found = uniquePending().filter(function (x) { return x.key === btn.getAttribute('data-key'); })[0];
         if (found) activate(found.order);
       });
     });
-    listEl.querySelectorAll('.pack-queue-del').forEach(function (btn) {
+    root.querySelectorAll('.pack-queue-del').forEach(function (btn) {
+      if (btn._pqBound) return;
+      btn._pqBound = true;
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var found = uniquePending().filter(function (x) { return x.key === btn.getAttribute('data-key'); })[0];
@@ -232,6 +265,63 @@
       });
     });
   }
+  function renderPending() {
+    var secBs = document.getElementById('pack-sec-bs');
+    var secPend = document.getElementById('pack-sec-pending');
+    if (!secPend) return;
+    var list = uniquePending().filter(function (item) {
+      return matchFilter([item.track, item.id, item.packageId, item.platform].join(' '), filterPending);
+    });
+    var bs = list.filter(isRecentBs);
+    var wait = list.filter(function (x) { return !isRecentBs(x); });
+    var bsHtml = '';
+    if (bs.length) {
+      bsHtml =
+        '<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:6px;padding:6px 10px;border-radius:10px;background:#fef3c7;border:1px solid #fcd34d">' +
+        '\u0e14\u0e36\u0e07\u0e08\u0e32\u0e01 BigSeller \u00b7 ' + bs.length + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto">' +
+        bs.map(function (item) { return itemRow(item, 'bs'); }).join('') + '</div>';
+    }
+    var pendHtml =
+      '<div style="font-size:12px;font-weight:800;color:#3730a3;margin-bottom:6px;padding:6px 10px;border-radius:10px;background:#e0e7ff;border:1px solid #c7d2fe">' +
+      '\u0e23\u0e2d\u0e41\u0e1e\u0e47\u0e01 \u00b7 ' + wait.length + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c</div>' +
+      (wait.length
+        ? '<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto">' + wait.map(function (item) { return itemRow(item, 'wait'); }).join('') + '</div>'
+        : '<div style="font-size:12px;color:var(--ink3);padding:6px 0">\u2014</div>');
+    var full = bsHtml + '||' + pendHtml;
+    if (full === lastPendingHtml) return;
+    lastPendingHtml = full;
+    if (secBs) {
+      if (bs.length) {
+        secBs.style.display = 'block';
+        secBs.innerHTML = bsHtml;
+        bindClicks(secBs);
+      } else {
+        secBs.style.display = 'none';
+        secBs.innerHTML = '';
+      }
+    }
+    secPend.innerHTML = pendHtml;
+    bindClicks(secPend);
+    var stats = document.getElementById('pack-queue-stats');
+    if (stats) {
+      var doneN = uniqueDone().length;
+      var sig = String(list.length) + '-' + doneN + '-' + bs.length;
+      if (stats.getAttribute('data-sig') !== sig) {
+        stats.setAttribute('data-sig', sig);
+        stats.innerHTML =
+          '<div style="flex:1;min-width:88px;padding:10px 12px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe">' +
+          '<div style="font-size:11px;color:#1e40af;font-weight:600">\u0e23\u0e2d\u0e41\u0e1e\u0e47\u0e01</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#1e3a8a">' + list.length + '</div></div>' +
+          '<div style="flex:1;min-width:88px;padding:10px 12px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0">' +
+          '<div style="font-size:11px;color:#047857;font-weight:600">\u0e15\u0e31\u0e14\u0e2a\u0e15\u0e47\u0e2d\u0e01\u0e41\u0e25\u0e49\u0e27</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#065f46">' + doneN + '</div></div>' +
+          '<div style="flex:1;min-width:88px;padding:10px 12px;border-radius:12px;background:#fef3c7;border:1px solid #fcd34d">' +
+          '<div style="font-size:11px;color:#92400e;font-weight:600">\u0e14\u0e36\u0e07 BigSeller</div>' +
+          '<div style="font-size:22px;font-weight:800;color:#78350f">' + bs.length + '</div></div>';
+      }
+    }
+  }
   function renderDone() {
     var listEl = document.getElementById('pack-done-list');
     var countEl = document.getElementById('pack-done-count');
@@ -239,23 +329,33 @@
     var list = uniqueDone().filter(function (item) {
       return matchFilter(item.label + ' ' + item.key, filterDone);
     });
+    var html;
+    if (!list.length) {
+      html = '<div style="font-size:12px;color:var(--ink3);padding:6px 0">\u2014</div>';
+    } else {
+      html = list.slice(0, 80).map(function (item) {
+        var time = item.at ? new Date(item.at).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+        return (
+          '<div style="padding:8px 12px;border-radius:12px;border:1px solid #d1fae5;background:#ecfdf5;display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+          '<div style="font-weight:600;font-size:12px;font-family:IBM Plex Mono,monospace">' + String(item.label).replace(/</g, '') + '</div>' +
+          '<div style="font-size:11px;color:#047857;white-space:nowrap">' + time + '</div></div>'
+        );
+      }).join('');
+    }
+    if (html === lastDoneHtml) return;
+    lastDoneHtml = html;
+    listEl.innerHTML = html;
     if (countEl) {
       countEl.textContent = list.length ? ('\u0e15\u0e31\u0e14\u0e41\u0e25\u0e49\u0e27 ' + list.length + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23') : '\u2014';
     }
-    if (!list.length) {
-      listEl.innerHTML = '<div style="font-size:12px;color:var(--ink3);padding:6px 0">\u2014</div>';
-      return;
-    }
-    listEl.innerHTML = list.slice(0, 80).map(function (item) {
-      var time = item.at ? new Date(item.at).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
-      return (
-        '<div style="padding:8px 12px;border-radius:12px;border:1px solid #d1fae5;background:#ecfdf5;display:flex;justify-content:space-between;gap:8px;align-items:center">' +
-        '<div style="font-weight:600;font-size:12px;font-family:IBM Plex Mono,monospace">' + String(item.label).replace(/</g, '') + '</div>' +
-        '<div style="font-size:11px;color:#047857;white-space:nowrap">' + time + '</div></div>'
-      );
-    }).join('');
   }
-  function renderAll() { renderPending(); renderDone(); }
+  function renderAll(force) {
+    var sig = dataSig();
+    if (!force && sig === lastSig) return;
+    lastSig = sig;
+    renderPending();
+    renderDone();
+  }
   function installGuard() {
     if (window.__bsTryLoadOrder && !window.__bsTryLoadOrder._doneGuard) {
       var orig = window.__bsTryLoadOrder;
@@ -270,21 +370,40 @@
   function wire() {
     if (!ensureUi()) return;
     installGuard();
-    renderAll();
+    renderAll(false);
   }
-  var lastSig = '';
   setInterval(function () {
     var page = document.getElementById('page-pack');
     if (!page || !page.classList.contains('active')) return;
-    wire();
-    var sig = (localStorage.getItem(KEY) || '') + '|' + (localStorage.getItem(DONE_KEY) || '');
-    if (sig !== lastSig) { lastSig = sig; renderAll(); }
+    if (!uiBuilt) { wire(); return; }
+    var sig = dataSig();
+    if (sig !== lastSig) renderAll(false);
   }, 2000);
   document.addEventListener('click', function (e) {
     var btn = e.target && e.target.closest && e.target.closest('.ni[data-page="pack"]');
-    if (btn) setTimeout(wire, 200);
+    if (btn) setTimeout(function () { wire(); lastSig = ''; lastPendingHtml = ''; renderAll(true); }, 200);
   });
-  window.__packQueueRefresh = renderAll;
+  function patchSave() {
+    if (!window.__bsSaveOrders || window.__bsSaveOrders._pqPatched) return;
+    var orig = window.__bsSaveOrders;
+    var wrap = function (orders) {
+      var now = Date.now();
+      (orders || []).forEach(function (o) {
+        if (!o) return;
+        if (!o.pulledAt) o.pulledAt = now;
+        if (!o.source) o.source = 'bigseller-bridge';
+        o.updatedAt = now;
+      });
+      var n = orig(orders);
+      lastSig = ''; lastPendingHtml = '';
+      setTimeout(function () { renderAll(true); }, 50);
+      return n;
+    };
+    wrap._pqPatched = true;
+    window.__bsSaveOrders = wrap;
+  }
+  setInterval(patchSave, 2000);
+  window.__packQueueRefresh = function () { lastSig = ''; lastPendingHtml = ''; lastDoneHtml = ''; renderAll(true); };
   window.__packIsOrderDone = isDoneCode;
   setTimeout(wire, 800);
   setTimeout(wire, 2000);
