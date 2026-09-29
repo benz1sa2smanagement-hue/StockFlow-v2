@@ -1,6 +1,5 @@
 /**
- * Pack order scan flow:
- * Scan order → load lines → if unmatched SKU, open mapper automatically
+ * Pack order scan: index all order IDs (Shopee SN, tracking, package)
  */
 (function () {
   'use strict';
@@ -56,7 +55,7 @@
     Object.keys(store).forEach(function (k) {
       var o = store[k];
       if (!o || !o.lines || !o.lines.length) return;
-      var id = norm(o.id || o.track || o.packageId || k);
+      var id = norm(o.id || o.track || o.packageId || o.platformOrder || o.orderNo || k);
       if (!id || seen[id]) return;
       seen[id] = 1; n++;
     });
@@ -85,12 +84,30 @@
     if (!order) return;
     var d = loadDone();
     var now = Date.now();
-    [order.id, order.track, order.packageId].forEach(function (k) {
+    [order.id, order.track, order.packageId, order.platformOrder, order.orderNo].forEach(function (k) {
       k = norm(k); if (k) d[k] = now;
     });
     try { localStorage.setItem(DONE_KEY, JSON.stringify(d)); } catch (e) {}
   }
-  function norm(v) { return String(v || '').trim().toUpperCase().replace(/\s+/g, ''); }
+
+  function thaiLayoutToEn(s) {
+    var th2en = {
+      '\u0e46':'q','\u0e44':'w','\u0e32':'e','\u0e2a':'r','\u0e27':'t','\u0e38':'y','\u0e37':'u','\u0e17':'i','\u0e22':'o','\u0e1a':'p',
+      '\u0e31':'a','\u0e14':'s','\u0e1f':'d','\u0e1e':'f','\u0e2b':'g','\u0e01':'h','\u0e48':'j','\u0e32':'k','\u0e2a':'l',
+      '\u0e1c':'z','\u0e1b':'x','\u0e41':'c','\u0e2d':'v','\u0e34':'b','\u0e37':'n','\u0e17':'m'
+    };
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (/[A-Za-z0-9\-_]/.test(ch)) out += ch;
+      else if (th2en[ch]) out += th2en[ch];
+      else out += ch;
+    }
+    return out;
+  }
+  function norm(v) {
+    return thaiLayoutToEn(String(v || '')).trim().toUpperCase().replace(/\s+/g, '');
+  }
 
   function focusEl(id) {
     var page = document.getElementById('page-pack');
@@ -118,15 +135,20 @@
   function indexOrder(store, order) {
     if (!order || !order.lines || !order.lines.length) return;
     var keys = [];
-    [order.id, order.track, order.packageId].forEach(function (k) {
+    [order.id, order.track, order.packageId, order.orderNo, order.platformOrder,
+     order.orderSn, order.platformOrderId, order.orderNumber].forEach(function (k) {
       k = norm(k); if (k && keys.indexOf(k) < 0) keys.push(k);
     });
     keys.slice().forEach(function (k) {
       var k2 = k.replace(/[^A-Z0-9]/g, '');
       if (k2 && keys.indexOf(k2) < 0) keys.push(k2);
-      if (k2.length > 10) {
+      if (k2.length > 8) {
         var tail = k2.slice(-12);
         if (keys.indexOf(tail) < 0) keys.push(tail);
+        if (/^[0-9]{6}[A-Z0-9]{6,}$/.test(k2)) {
+          var rest = k2.slice(6);
+          if (rest.length >= 6 && keys.indexOf(rest) < 0) keys.push(rest);
+        }
       }
     });
     keys.forEach(function (k) { store[k] = order; });
@@ -154,6 +176,7 @@
     var v = String(raw || '').trim();
     if (!v) return out;
     add(v);
+    add(thaiLayoutToEn(v));
     if (/^https?:\/\//i.test(v) || /spx\.|shopee|lazada|tiktok/i.test(v)) {
       try {
         var u = new URL(/^https?:\/\//i.test(v) ? v : 'https://' + v);
@@ -209,8 +232,7 @@
           var ret = window.__packShowSkuMapper(order);
           if (ret && typeof ret.then === 'function') {
             ret.then(function (o) {
-              if (o && countUnmatched(o) === 0) loadLinesIntoPack(o);
-              else if (o) loadLinesIntoPack(o);
+              if (o) loadLinesIntoPack(o);
             }).catch(function () {});
           }
         } catch (e) {}
@@ -232,7 +254,7 @@
     if (resetBtn) { try { resetBtn.click(); } catch (e) {} }
 
     var orderEl = document.getElementById('pack-order');
-    if (orderEl) orderEl.value = order.track || order.packageId || order.id || '';
+    if (orderEl) orderEl.value = order.track || order.platformOrder || order.orderNo || order.packageId || order.id || '';
 
     if (order.platform) {
       var p = String(order.platform).toLowerCase();
@@ -273,14 +295,14 @@
       }
     });
 
-    var label = order.track || order.packageId || order.id || '';
+    var label = order.track || order.platformOrder || order.orderNo || order.packageId || order.id || '';
     var fb = document.getElementById('pack-fb');
     if (fb) {
       if (added > 0) {
         fb.style.background = unmatchedN ? '#fef3c7' : 'var(--ok-soft, #dcfce7)';
         fb.style.color = unmatchedN ? '#92400e' : 'var(--ok, #15803d)';
         fb.textContent = unmatchedN
-          ? ('\u26a0 \u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u00b7 \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 ' + unmatchedN + ' \u2014 \u0e01\u0e14\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48')
+          ? ('\u26a0 \u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 \u00b7 \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e08\u0e31\u0e1a\u0e04\u0e39\u0e48 ' + unmatchedN)
           : ('\u2713 \u0e42\u0e2b\u0e25\u0e14 ' + label + ' \u00b7 ' + added + ' \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23');
         fb.style.cursor = unmatchedN ? 'pointer' : 'default';
         fb.onclick = unmatchedN ? function () { openMapperSoon(order); } : null;
@@ -304,13 +326,11 @@
       setStatus('\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e21\u0e35\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23', 'bad');
       return false;
     }
-    lastTry = { v: norm(order.id || order.track || ''), t: Date.now() };
+    lastTry = { v: norm(order.id || order.track || order.platformOrder || ''), t: Date.now() };
     setStatus('\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u2026', 'info');
 
     function afterExpand(o) {
-      o = o || order;
-      loadLinesIntoPack(o);
-      // loadLinesIntoPack already calls openMapperSoon if needed
+      loadLinesIntoPack(o || order);
     }
 
     if (typeof window.__packExpandOrderSilent === 'function') {
@@ -336,8 +356,9 @@
     var ord = findOrder(v);
     if (!ord) {
       var short = v.length > 36 ? v.slice(0, 36) + '\u2026' : v;
-      setStatus('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c: ' + short, 'bad');
-      if (!silent) toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c: ' + short);
+      var n = orderCount();
+      setStatus('\u0e44\u0e21\u0e48\u0e1e\u0e1a: ' + short + ' \u00b7 \u0e04\u0e34\u0e27 ' + n + ' \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c \u2014 \u0e25\u0e2d\u0e07\u0e14\u0e36\u0e07\u0e43\u0e2b\u0e21\u0e48 \u0e2b\u0e23\u0e37\u0e2d\u0e2a\u0e41\u0e01\u0e19 Tracking', 'bad');
+      if (!silent) toast('\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c: ' + short + ' (\u0e04\u0e34\u0e27 ' + n + ')');
       return false;
     }
     lastTry = { v: norm(v), t: now };
@@ -393,7 +414,7 @@
     var ord = findOrder(v);
     if (!ord) return false;
     var cur = currentOrderId();
-    var oid = norm(ord.id || ord.track || ord.packageId || '');
+    var oid = norm(ord.id || ord.track || ord.packageId || ord.platformOrder || '');
     var same = cur && oid && (cur === oid || cur.indexOf(oid) >= 0 || oid.indexOf(cur) >= 0);
     if (same && lineCount() > 0 && !linesAllDone()) return false;
     if (cur && !same && lineCount() > 0 && linesAllDone()) markDone({ id: cur, track: cur });
@@ -413,7 +434,7 @@
     var orderEl = document.getElementById('pack-order');
     if (!orderEl || orderEl.getAttribute('data-bs-order-bound')) return;
     orderEl.setAttribute('data-bs-order-bound', '1');
-    orderEl.setAttribute('placeholder', '\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / Tracking');
+    orderEl.setAttribute('placeholder', '\u0e2a\u0e41\u0e01\u0e19\u0e43\u0e1a\u0e1b\u0e30\u0e2b\u0e19\u0e49\u0e32 / Order ID / Tracking');
     orderEl.addEventListener('input', function () {
       if (orderTimer) clearTimeout(orderTimer);
       orderTimer = setTimeout(function () { onOrderValue(orderEl.value, false); }, 80);
