@@ -276,10 +276,10 @@
   }, 800);
   [400, 1200, 3000, 6000].forEach(function (ms) { setTimeout(wire, ms); });
 
-  ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js', 'pack-bigseller-bridge.js', 'pack-visual.js', 'pack-queue.js', 'pack-auto-complete.js', 'pack-history.js', 'pack-map-ui.js', 'pack-mobile.js', 'pack-icons.js'].forEach(function (src) {
+  ['pack-sync.js', 'pack-alert.js', 'pack-evidence.js', 'pack-sku-expand.js', 'pack-persist.js', 'pack-bigseller-bridge.js', 'pack-visual.js', 'pack-queue.js', 'pack-queue-ui.js', 'pack-auto-complete.js', 'pack-history.js', 'pack-map-ui.js', 'pack-mobile.js', 'pack-icons.js'].forEach(function (src) {
     if (document.querySelector('script[src*="' + src.replace('.js', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=ui3';
+    s.src = src + '?v=ui4';
     document.body.appendChild(s);
   });
 
