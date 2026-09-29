@@ -47,22 +47,30 @@
   function ensureAddBtn() {
     var page = document.getElementById('page-products');
     if (!page) return;
-    if (document.getElementById('prod-add-btn')) return;
-    var btn = document.createElement('button');
-    btn.id = 'prod-add-btn';
-    btn.type = 'button';
-    btn.textContent = '\uff0b \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';
-    btn.style.cssText = 'width:100%;margin:0 0 12px;padding:14px 16px;border-radius:14px;border:none;background:var(--ink,#0C0E12);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(12,14,18,.18)';
+    var btn = document.getElementById('prod-add-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'prod-add-btn';
+      btn.type = 'button';
+      btn.textContent = '+ \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';
+      btn.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:8px 0 14px;padding:14px 16px;border-radius:14px;border:none;background:#0C0E12;color:#fff;font-size:15px;font-weight:800;cursor:pointer;z-index:5;position:relative';
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openAddSheet();
+      });
+    }
     var list = document.getElementById('prod-list');
     var title = page.querySelector('.pt');
-    if (list && list.parentNode) list.parentNode.insertBefore(btn, list);
-    else if (title && title.parentNode) title.parentNode.insertBefore(btn, title.nextSibling);
-    else page.insertBefore(btn, page.firstChild);
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      openAddSheet();
-    });
+    if (list && list.parentNode) {
+      if (btn.parentNode !== list.parentNode || btn.nextSibling !== list) {
+        list.parentNode.insertBefore(btn, list);
+      }
+    } else if (title && title.nextSibling !== btn) {
+      title.parentNode.insertBefore(btn, title.nextSibling);
+    } else if (!btn.parentNode) {
+      page.insertBefore(btn, page.firstChild);
+    }
   }
 
   function ensureSheet() {
@@ -75,7 +83,6 @@
       '<div class="sheet-h"><div class="sheet-t">\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48</div>' +
       '<button type="button" class="sheet-x" id="pa-close">\u2715</button></div>' +
       '<div class="sheet-b">' +
-
       '<div class="field"><label>\u0e23\u0e39\u0e1b\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</label>' +
       '<div id="pa-img-box" style="border:2px dashed var(--line2,#ddd);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:var(--bg,#faf8f4);min-height:120px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">' +
       '<img id="pa-img-preview" alt="" style="display:none;max-width:100%;max-height:160px;border-radius:10px;object-fit:contain">' +
@@ -83,16 +90,12 @@
       '</div>' +
       '<input type="file" id="pa-img-file" accept="image/*" capture="environment" style="display:none">' +
       '<button type="button" id="pa-img-clear" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer">\u0e25\u0e1a\u0e23\u0e39\u0e1b</button></div>' +
-
       '<div class="field"><label>\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 <span style="color:#b91c1c">*</span></label>' +
       '<input type="text" id="pa-name" placeholder="\u0e40\u0e0a\u0e48\u0e19 \u0e04\u0e34\u0e42\u0e22\u0e21\u0e34 \u0e17\u0e34\u0e0a\u0e0a\u0e39\u0e48\u0e14\u0e36\u0e07" autocomplete="off"></div>' +
-
       '<div class="field"><label>\u0e23\u0e2b\u0e31\u0e2a SKU <span style="color:#b91c1c">*</span></label>' +
       '<input type="text" id="pa-sku" placeholder="\u0e40\u0e0a\u0e48\u0e19 PULL-1PACK" autocomplete="off"></div>' +
-
       '<div class="field"><label>\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14</label>' +
       '<input type="text" id="pa-barcode" placeholder="\u0e2a\u0e41\u0e01\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14" autocomplete="off" inputmode="numeric"></div>' +
-
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
       '<div class="field"><label>\u0e2b\u0e19\u0e48\u0e27\u0e22\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19</label>' +
       '<select id="pa-base-unit">' +
@@ -112,20 +115,16 @@
       '<option value="\u0e41\u0e1e\u0e47\u0e04">\u0e41\u0e1e\u0e47\u0e04</option>' +
       '<option value="\u0e0a\u0e38\u0e14">\u0e0a\u0e38\u0e14</option>' +
       '</select></div></div>' +
-
       '<div class="field"><label>\u0e08\u0e33\u0e19\u0e27\u0e19\u0e15\u0e48\u0e2d\u0e25\u0e31\u0e07</label>' +
-      '<input type="number" id="pa-ppc" min="1" step="1" value="1" placeholder="4 = 1 \u0e25\u0e31\u0e07\u0e21\u0e35 4 \u0e41\u0e1e\u0e47\u0e04">' +
+      '<input type="number" id="pa-ppc" min="1" step="1" value="1">' +
       '<div style="font-size:11px;color:var(--ink3);margin-top:4px">\u0e16\u0e49\u0e32 1 \u0e25\u0e31\u0e07 = 4 \u0e41\u0e1e\u0e47\u0e04 \u0e43\u0e2b\u0e49\u0e43\u0e2a\u0e48 4</div></div>' +
-
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
       '<div class="field"><label>\u0e23\u0e32\u0e04\u0e32\u0e17\u0e38\u0e19</label>' +
-      '<input type="number" id="pa-cost" min="0" step="any" value="0" placeholder="0"></div>' +
+      '<input type="number" id="pa-cost" min="0" step="any" value="0"></div>' +
       '<div class="field"><label>\u0e23\u0e32\u0e04\u0e32\u0e02\u0e32\u0e22</label>' +
-      '<input type="number" id="pa-sale" min="0" step="any" value="0" placeholder="0"></div></div>' +
-
+      '<input type="number" id="pa-sale" min="0" step="any" value="0"></div></div>' +
       '<div class="field"><label>\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48</label>' +
-      '<input type="text" id="pa-cat" placeholder="\u0e40\u0e0a\u0e48\u0e19 \u0e17\u0e34\u0e0a\u0e0a\u0e39\u0e48 / \u0e02\u0e2d\u0e07\u0e43\u0e0a\u0e49" autocomplete="off"></div>' +
-
+      '<input type="text" id="pa-cat" placeholder="\u0e40\u0e0a\u0e48\u0e19 \u0e17\u0e34\u0e0a\u0e0a\u0e39\u0e48" autocomplete="off"></div>' +
       '<button type="button" class="btn btn-ink" id="pa-save" style="width:100%;margin-top:8px;padding:14px;font-size:15px;font-weight:800">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48</button>' +
       '</div></div>';
     document.body.appendChild(ov);
@@ -154,9 +153,7 @@
         prev.style.display = 'block';
         ph.style.display = 'none';
         clearBtn.style.display = 'inline-block';
-      }).catch(function () {
-        toast('\u0e2d\u0e48\u0e32\u0e19\u0e23\u0e39\u0e1b\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08');
-      });
+      }).catch(function () { toast('\u0e2d\u0e48\u0e32\u0e19\u0e23\u0e39\u0e1b\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08'); });
     });
     clearBtn.addEventListener('click', function (e) {
       e.preventDefault();
@@ -350,9 +347,12 @@
     enhanceEditSheet();
   }
 
-  setInterval(wire, 800);
-  setTimeout(wire, 400);
-  setTimeout(wire, 1500);
+  window.__sfEnsureAddProduct = wire;
+  setInterval(wire, 600);
+  setTimeout(wire, 200);
+  setTimeout(wire, 800);
+  setTimeout(wire, 2000);
+  setTimeout(wire, 4000);
   document.addEventListener('click', function (e) {
     var btn = e.target && e.target.closest && e.target.closest('.ni[data-page="products"]');
     if (btn) setTimeout(wire, 200);
