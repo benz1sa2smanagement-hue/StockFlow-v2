@@ -1,17 +1,18 @@
 // ==UserScript==
 // @name         StockFlow BigSeller Bridge
 // @namespace    https://benz1sa2smanagement-hue.github.io/StockFlow-v2/
-// @version      1.3.1
+// @version      1.3.2
 // @description  Pull orders from logged-in BigSeller tab into StockFlow via Firebase
-// @match        https://*.bigseller.com/*
-// @match        https://www.bigseller.com/*
-// @match        https://bigseller.com/*
+// @match        *://*.bigseller.com/*
+// @match        *://bigseller.com/*
+// @match        *://www.bigseller.com/*
+// @include      *://*bigseller.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @connect      kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app
 // @connect      raw.githubusercontent.com
-// @run-at       document-idle
+// @run-at       document-end
 // ==/UserScript==
 
 (function () {
@@ -19,31 +20,46 @@
   var DB = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app';
   var captured = [];
   var lastPullHandled = 0;
+  var uiTries = 0;
 
   function getCfg() {
+    var ws = '';
+    var room = 'WH_A';
+    try { if (typeof GM_getValue === 'function') ws = GM_getValue('sf_ws', '') || ''; } catch (e) {}
+    try { if (typeof GM_getValue === 'function') room = GM_getValue('sf_room', '') || 'WH_A'; } catch (e) {}
+    try {
+      if (!ws) ws = localStorage.getItem('sf_bridge_ws') || '';
+      var r2 = localStorage.getItem('sf_bridge_room');
+      if (r2) room = r2;
+    } catch (e2) {}
     return {
-      wsKey: (typeof GM_getValue === 'function' ? (GM_getValue('sf_ws', '') || '') : '') || localStorage.getItem('sf_bridge_ws') || '',
-      room: (typeof GM_getValue === 'function' ? (GM_getValue('sf_room', '') || '') : '') || localStorage.getItem('sf_bridge_room') || 'WH_A'
+      wsKey: String(ws || '').trim().replace(/^WS-/i, ''),
+      room: String(room || 'WH_A').trim() || 'WH_A'
     };
   }
   function setCfg(ws, room) {
     ws = String(ws || '').trim().replace(/^WS-/i, '');
     room = String(room || 'WH_A').trim() || 'WH_A';
-    try { if (typeof GM_setValue === 'function') { GM_setValue('sf_ws', ws || ''); GM_setValue('sf_room', room); } } catch (e) {}
+    try {
+      if (typeof GM_setValue === 'function') {
+        GM_setValue('sf_ws', ws || '');
+        GM_setValue('sf_room', room);
+      }
+    } catch (e) {}
     try {
       localStorage.setItem('sf_bridge_ws', ws || '');
       localStorage.setItem('sf_bridge_room', room);
-    } catch (e) {}
+    } catch (e2) {}
   }
   function pathBase() {
     var c = getCfg();
     if (!c.wsKey) return '';
-    return 'ws_' + String(c.wsKey).replace(/^WS-/i, '') + '/rooms/' + (c.room || 'WH_A');
+    return 'ws_' + c.wsKey + '/rooms/' + (c.room || 'WH_A');
   }
   function gmFetch(url, method, body) {
     return new Promise(function (resolve, reject) {
       if (typeof GM_xmlhttpRequest !== 'function') {
-        reject(new Error('Install with Tampermonkey/Violentmonkey'));
+        reject(new Error('Need Tampermonkey/Violentmonkey'));
         return;
       }
       GM_xmlhttpRequest({
@@ -66,8 +82,12 @@
     var base = pathBase();
     if (!base) return Promise.resolve();
     return fbPut(base + '/bsBridge/status', {
-      onlineAt: Date.now(), page: location.pathname + location.search,
-      message: msg || '', href: location.href, ver: '1.3.1', captured: captured.length
+      onlineAt: Date.now(),
+      page: location.pathname + location.search,
+      message: msg || '',
+      href: location.href,
+      ver: '1.3.2',
+      captured: captured.length
     }).catch(function () {});
   }
 
@@ -304,48 +324,101 @@
     }).catch(function () {});
   }
 
-  function ensureFloatingUi() {
-    if (document.getElementById('sf-bs-float')) return;
-    var el = document.createElement('div');
-    el.id = 'sf-bs-float';
-    el.style.cssText = 'position:fixed;z-index:2147483646;right:16px;bottom:16px;background:#0C0E12;color:#fff;padding:12px 14px;border-radius:14px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:300px';
-    el.innerHTML =
-      '<div style="font-weight:700;margin-bottom:6px">StockFlow Bridge v1.3.1</div>' +
-      '<div id="sf-bs-msg" style="opacity:.85;font-size:12px;margin-bottom:8px">connecting...</div>' +
-      '<button id="sf-bs-send" style="width:100%;padding:10px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">Send orders to StockFlow</button>' +
-      '<button id="sf-bs-cfg" style="width:100%;margin-top:6px;padding:8px;border:0;border-radius:10px;background:#333;color:#fff;cursor:pointer">Set Workspace</button>';
-    document.body.appendChild(el);
-    document.getElementById('sf-bs-send').addEventListener('click', function () {
-      if (!getCfg().wsKey) { showBadge('Set Workspace first'); return; }
-      doPull(Date.now(), {});
-    });
-    document.getElementById('sf-bs-cfg').addEventListener('click', function () {
-      var ws = prompt('Workspace key from StockFlow (เช่น 54A39201)', getCfg().wsKey || '');
-      if (ws == null) return;
-      var room = prompt('Room (คลัง เช่น WH_A)', getCfg().room || 'WH_A');
-      setCfg(String(ws).trim(), String(room || 'WH_A').trim());
-      lastPullHandled = 0;
-      heartbeat('configured');
-      showBadge('WS: ' + getCfg().wsKey + ' · ' + getCfg().room);
-      setTimeout(pollBridge, 500);
-    });
-  }
-
   function showBadge(msg) {
     var m = document.getElementById('sf-bs-msg');
     if (m) m.textContent = msg;
   }
 
-  hookNetwork();
-  ensureFloatingUi();
-  heartbeat('ready');
-  showBadge(getCfg().wsKey ? ('WS: ' + getCfg().wsKey + ' · ' + getCfg().room) : 'Set Workspace first');
+  function ensureFloatingUi() {
+    if (document.getElementById('sf-bs-float')) return true;
+    var host = document.body || document.documentElement;
+    if (!host) return false;
+
+    var el = document.createElement('div');
+    el.id = 'sf-bs-float';
+    el.setAttribute('data-sf-bridge', '1.3.2');
+    el.style.cssText = [
+      'all:initial',
+      'position:fixed',
+      'z-index:2147483647',
+      'right:12px',
+      'bottom:12px',
+      'background:#0C0E12',
+      'color:#fff',
+      'padding:12px 14px',
+      'border-radius:14px',
+      'font:13px/1.4 system-ui,-apple-system,sans-serif',
+      'box-shadow:0 8px 28px rgba(0,0,0,.45)',
+      'max-width:300px',
+      'min-width:220px',
+      'border:2px solid #2563eb',
+      'pointer-events:auto'
+    ].join(';');
+    el.innerHTML =
+      '<div style="all:initial;display:block;font:700 13px system-ui,sans-serif;color:#fff;margin-bottom:6px">StockFlow Bridge v1.3.2</div>' +
+      '<div id="sf-bs-msg" style="all:initial;display:block;font:12px system-ui,sans-serif;color:#cbd5e1;margin-bottom:8px;line-height:1.35">starting\u2026</div>' +
+      '<button id="sf-bs-send" type="button" style="all:initial;display:block;width:100%;box-sizing:border-box;padding:10px;border:0;border-radius:10px;background:#2563eb;color:#fff;font:700 13px system-ui,sans-serif;cursor:pointer;text-align:center">Send orders to StockFlow</button>' +
+      '<button id="sf-bs-cfg" type="button" style="all:initial;display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:8px;border:0;border-radius:10px;background:#334155;color:#fff;font:12px system-ui,sans-serif;cursor:pointer;text-align:center">Set Workspace</button>';
+
+    try { host.appendChild(el); } catch (e) { return false; }
+
+    var sendBtn = document.getElementById('sf-bs-send');
+    var cfgBtn = document.getElementById('sf-bs-cfg');
+    if (sendBtn) {
+      sendBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!getCfg().wsKey) { showBadge('Set Workspace first'); return; }
+        doPull(Date.now(), {});
+      }, true);
+    }
+    if (cfgBtn) {
+      cfgBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var ws = prompt('Workspace key \u0e08\u0e32\u0e01 StockFlow (\u0e40\u0e0a\u0e48\u0e19 54A39201)', getCfg().wsKey || '');
+        if (ws == null) return;
+        var room = prompt('Room / \u0e04\u0e25\u0e31\u0e07 (\u0e40\u0e0a\u0e48\u0e19 WH_A)', getCfg().room || 'WH_A');
+        setCfg(String(ws).trim(), String(room || 'WH_A').trim());
+        lastPullHandled = 0;
+        heartbeat('configured');
+        showBadge('WS: ' + getCfg().wsKey + ' \u00b7 ' + getCfg().room);
+        setTimeout(pollBridge, 400);
+      }, true);
+    }
+    return true;
+  }
+
+  function bootUi() {
+    uiTries++;
+    var ok = ensureFloatingUi();
+    if (ok) {
+      var c = getCfg();
+      showBadge(c.wsKey ? ('WS: ' + c.wsKey + ' \u00b7 ' + c.room) : '\u0e01\u0e14 Set Workspace \u0e01\u0e48\u0e2d\u0e19');
+      return;
+    }
+    if (uiTries < 40) setTimeout(bootUi, 500);
+  }
+
+  try { hookNetwork(); } catch (e) {}
+  bootUi();
   setInterval(function () {
-    heartbeat(captured.length ? ('cached ' + captured.length) : 'open order/print list to capture');
-    pollBridge();
+    if (!document.getElementById('sf-bs-float')) {
+      uiTries = 0;
+      bootUi();
+    }
+  }, 2000);
+
+  heartbeat('ready');
+  setInterval(function () {
     var c = getCfg();
-    if (c.wsKey) showBadge('WS:' + c.wsKey + ' · ' + c.room + ' · ' + captured.length + ' cached');
+    heartbeat(captured.length ? ('cached ' + captured.length) : 'open order/print list');
+    pollBridge();
+    if (c.wsKey) showBadge('WS:' + c.wsKey + ' \u00b7 ' + c.room + ' \u00b7 ' + captured.length + ' cached');
+    else showBadge('\u0e01\u0e14 Set Workspace \u0e01\u0e48\u0e2d\u0e19');
   }, 3000);
   setTimeout(pollBridge, 800);
   setTimeout(pollBridge, 2500);
+
+  try { console.log('[StockFlow Bridge 1.3.2] loaded on', location.href); } catch (e) {}
 })();
