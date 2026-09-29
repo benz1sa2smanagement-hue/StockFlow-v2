@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         StockFlow BigSeller Bridge
 // @namespace    https://benz1sa2smanagement-hue.github.io/StockFlow-v2/
-// @version      1.3.5
+// @version      1.3.6
 // @description  Auto-pair + auto-send BigSeller orders to StockFlow via Firebase
 // @match        *://*.bigseller.com/*
 // @match        *://bigseller.com/*
@@ -130,7 +130,7 @@
       page: location.pathname + location.search,
       message: msg || '',
       href: location.href,
-      ver: '1.3.5',
+      ver: '1.3.6',
       captured: captured.length,
       jsonHits: lastJsonHits,
       sample: sample
@@ -142,15 +142,18 @@
   function pickId(data) {
     if (!data || typeof data !== 'object') return '';
     var keys = [
+      'packageId', 'package_id', 'packageNo', 'package_no', 'pkgId', 'bsCode', 'bs_code',
       'orderId', 'order_id', 'orderNo', 'order_no', 'orderNumber', 'order_number',
       'platformOrderId', 'platform_order_id', 'platformOrderNo', 'platform_order_no',
-      'packageId', 'package_id', 'packageNo', 'package_no', 'pkgId',
       'trackingNumber', 'tracking_number', 'trackingNo', 'tracking_no',
-      'bsCode', 'bs_code', 'shipmentId', 'shipment_id', 'id'
+      'shipmentId', 'shipment_id', 'expressNo', 'waybillNo', 'waybill_no'
     ];
     for (var i = 0; i < keys.length; i++) {
       var v = data[keys[i]];
       if (v != null && String(v).trim() !== '' && String(v).trim() !== '0') return String(v).trim();
+    }
+    if (data.id != null && String(data.id).trim() !== '' && String(data.id).trim() !== '0') {
+      return String(data.id).trim();
     }
     return '';
   }
@@ -224,15 +227,18 @@
           lines: lines
         });
       }
-    } else if (id && (data.sellerSku || data.sku || data.productName || data.itemName || data.goodsName)) {
+    } else if (id) {
       var fl = fallbackLines(data);
+      if (!fl.length && (data.itemCount || data.skuCount || data.productCount || data.totalQty)) {
+        fl = [{ skuId: '', name: '(\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e08\u0e32\u0e01 BigSeller)', qty: parseInt(data.itemCount || data.skuCount || data.productCount || data.totalQty || 1, 10) || 1, unitSku: '', barcode: '', matched: false }];
+      }
       if (fl.length) {
         out.push({
           id: String(id),
-          track: norm(data.trackingNumber || data.trackingNo || ''),
-          packageId: norm(data.packageId || data.packageNo || data.bsCode || ''),
-          platform: norm(data.platform || data.channel || data.shopName || data.marketplace || ''),
-          printStatus: norm(data.printStatus || data.isPrint || ''),
+          track: norm(data.trackingNumber || data.tracking_number || data.trackingNo || data.tracking_no || data.expressNo || ''),
+          packageId: norm(data.packageId || data.package_id || data.packageNo || data.bsCode || ''),
+          platform: norm(data.platform || data.channel || data.shopName || data.shop_name || data.marketplace || ''),
+          printStatus: norm(data.printStatus || data.isPrint || data.labelPrintStatus || ''),
           shipStatus: norm(data.shippingStatus || data.orderStatus || data.statusName || data.status || ''),
           printedAt: data.printTime || data.printedAt || null,
           orderAt: data.orderTime || data.createTime || data.createdAt || data.payTime || null,
@@ -256,13 +262,35 @@
     return out;
   }
 
+  function orderKey(o) {
+    if (!o) return '';
+    var pkg = String(o.packageId || '').trim().toUpperCase().replace(/\s+/g, '');
+    var track = String(o.track || '').trim().toUpperCase().replace(/\s+/g, '');
+    var id = String(o.id || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (pkg) return 'P:' + pkg;
+    if (track) return 'T:' + track;
+    if (id) return 'I:' + id;
+    return '';
+  }
   function mergeUnique(list) {
     var map = {};
-    list.forEach(function (o) {
-      if (!o || !o.lines || !o.lines.length) return;
-      var key = String(o.id || o.track || o.packageId || Math.random());
-      if (!map[key]) map[key] = o;
+    var skipped = 0;
+    (list || []).forEach(function (o) {
+      if (!o) return;
+      if (!o.lines || !o.lines.length) { skipped++; return; }
+      var key = orderKey(o);
+      if (!key) { skipped++; return; }
+      var prev = map[key];
+      if (!prev) {
+        map[key] = o;
+        return;
+      }
+      var score = function (x) {
+        return (x.lines ? x.lines.length : 0) * 10 + (x.track ? 3 : 0) + (x.packageId ? 2 : 0) + (x.platform ? 1 : 0);
+      };
+      if (score(o) >= score(prev)) map[key] = o;
     });
+    if (skipped) console.log('[StockFlow Bridge] merge skipped (no lines/key):', skipped);
     return Object.keys(map).map(function (k) { return map[k]; });
   }
 
@@ -279,10 +307,12 @@
     noteJson(data, url);
     var found = extractOrdersFromJson(data);
     if (found.length) {
+      var before = captured.length;
       captured = mergeUnique(captured.concat(found));
-      console.log('[StockFlow Bridge] captured +' + found.length + ' total=' + captured.length, found[0] && found[0].id);
+      var added = captured.length - before;
+      console.log('[StockFlow Bridge] found=' + found.length + ' added=' + added + ' total=' + captured.length, found[0] && (found[0].packageId || found[0].id));
       heartbeat('cached ' + captured.length);
-      showBadge('cached ' + captured.length);
+      showBadge('cached ' + captured.length + (added ? ' (+' + added + ')' : ''));
       try { autoSendIfNeeded(); } catch (eA) {}
     }
   }
@@ -369,7 +399,7 @@
     if (!base) return Promise.resolve();
     var payload = {};
     orderList.forEach(function (o) {
-      var id = String(o.id || o.track || o.packageId).toUpperCase().replace(/\s+/g, '');
+      var id = String(o.packageId || o.track || o.id || '').toUpperCase().replace(/\s+/g, '');
       if (!id) return;
       payload[id] = {
         id: o.id || '', track: o.track || '', packageId: o.packageId || '',
@@ -472,62 +502,41 @@
     if (!host) return false;
     var el = document.createElement('div');
     el.id = 'sf-bs-float';
-    el.setAttribute('data-sf-bridge', '1.3.5');
+    el.setAttribute('data-sf-bridge', '1.3.6');
     el.style.cssText = 'all:initial;position:fixed;z-index:2147483647;right:12px;bottom:12px;background:#0C0E12;color:#fff;padding:12px 14px;border-radius:14px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.45);max-width:300px;min-width:220px;border:2px solid #2563eb;pointer-events:auto';
     el.innerHTML =
-      '<div style="all:initial;display:block;font:700 13px system-ui,sans-serif;color:#fff;margin-bottom:6px">StockFlow Bridge v1.3.5</div>' +
-      '<div id="sf-bs-msg" style="all:initial;display:block;font:12px system-ui,sans-serif;color:#cbd5e1;margin-bottom:8px;line-height:1.35">starting...</div>' +
-      '<button id="sf-bs-send" type="button" style="all:initial;display:block;width:100%;box-sizing:border-box;padding:10px;border:0;border-radius:10px;background:#2563eb;color:#fff;font:700 13px system-ui,sans-serif;cursor:pointer;text-align:center">Send now</button>';
-    try { host.appendChild(el); } catch (e) { return false; }
-    var sendBtn = document.getElementById('sf-bs-send');
-    if (sendBtn) {
-      sendBtn.addEventListener('click', function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (!getCfg().wsKey) { showBadge('Waiting StockFlow pair...'); return; }
-        doPull(Date.now(), { printFilter: 'all', dayRange: 7, platforms: [] });
-      }, true);
-    }
+      '<div style="all:initial;display:block;font:700 13px system-ui,sans-serif;color:#fff;margin-bottom:6px">StockFlow Bridge v1.3.6</div>' +
+      '<div id="sf-bs-msg" style="all:initial;display:block;font:12px system-ui,sans-serif;color:#cbd5e1;margin-bottom:8px;line-height:1.4">Starting\u2026</div>' +
+      '<div style="all:initial;display:block;font:11px system-ui,sans-serif;color:#94a3b8">Open New + In Process order pages to capture</div>';
+    host.appendChild(el);
     return true;
   }
 
-  function bootUi() {
+  function tickUi() {
     uiTries++;
-    var ok = ensureFloatingUi();
-    if (ok) {
-      var c = getCfg();
-      showBadge(c.wsKey ? ('Auto \u00b7 ' + c.wsKey + ' \u00b7 ' + c.room) : 'Waiting StockFlow pair...');
-      return;
-    }
-    if (uiTries < 50) setTimeout(bootUi, 400);
+    if (!ensureFloatingUi() && uiTries < 40) setTimeout(tickUi, 250);
   }
 
-  try { hookNetwork(); } catch (e) {}
-  function startUiWhenReady() {
-    if (document.body) bootUi();
-    else setTimeout(startUiWhenReady, 50);
-  }
-  startUiWhenReady();
-  setInterval(function () {
-    if (!document.getElementById('sf-bs-float')) { uiTries = 0; bootUi(); }
-  }, 2000);
-
-  function tick() {
-    autoPairFromStockFlow().then(function () {
-      var c = getCfg();
-      var msg;
-      if (!c.wsKey) msg = 'Waiting StockFlow pair...';
-      else if (captured.length) msg = 'Auto \u00b7 ' + c.wsKey + ' \u00b7 ' + captured.length + ' cached';
-      else msg = 'Auto \u00b7 ' + c.wsKey + ' \u00b7 hits:' + lastJsonHits;
-      showBadge(msg);
-      heartbeat(captured.length ? ('cached ' + captured.length) : ('hits ' + lastJsonHits));
+  function boot() {
+    hookNetwork();
+    tickUi();
+    setInterval(function () {
+      autoPairFromStockFlow();
       pollBridge();
-      try { autoSendIfNeeded(); } catch (e2) {}
-    });
+      heartbeat('ok');
+      autoSendIfNeeded();
+    }, 4000);
+    autoPairFromStockFlow();
+    setTimeout(function () { heartbeat('boot'); }, 800);
   }
 
-  setInterval(tick, 3000);
-  setTimeout(pollBridge, 800);
-  setTimeout(pollBridge, 2500);
-  try { console.log('[StockFlow Bridge 1.3.5] loaded on', location.href); } catch (e) {}
+  hookNetwork();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+  setTimeout(tickUi, 100);
+  setTimeout(tickUi, 500);
+  setTimeout(tickUi, 1500);
 })();
