@@ -6,17 +6,52 @@
 <title>StockFlow</title>
 <script>
 (function () {
-  var url = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
-  fetch(url, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
-    html = html.replace(
-      '<script src="barcode-edit.js"><\/script>',
-      '<script src="barcode-edit.js"><\/script>\n<script src="product-image.js"><\/script>\n<script src="product-add.js"><\/script>\n<script src="pack-wrong-guide.js"><\/script>\n<script src="pack-orders.js"><\/script>\n<script src="pack-line-ui.js"><\/script>\n<script src="pack-match.js"><\/script>\n<script src="pack-sku-expand.js"><\/script>\n<script src="pack-queue.js"><\/script>\n<script src="pack-queue-ui.js"><\/script>\n<script src="pack-bigseller-bridge.js"><\/script>\n<script src="pack-visual.js"><\/script>'
-    );
+  var BASE = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@main/';
+  var PIN  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
+  var EXTRA = [
+    'product-image.js',
+    'product-add.js',
+    'pack-wrong-guide.js',
+    'pack-orders.js',
+    'pack-line-ui.js',
+    'pack-match.js',
+    'pack-sku-expand.js',
+    'pack-queue.js',
+    'pack-queue-ui.js',
+    'pack-bigseller-bridge.js',
+    'pack-visual.js'
+  ];
+
+  function loadScript(src) {
+    return new Promise(function (resolve) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.async = false;
+      s.onload = function () { resolve(true); };
+      s.onerror = function () { console.warn('[SF] fail', src); resolve(false); };
+      document.head.appendChild(s);
+    });
+  }
+
+  fetch(PIN, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
     document.open();
     document.write(html);
     document.close();
+
+    setTimeout(function () {
+      var chain = Promise.resolve();
+      EXTRA.forEach(function (f) {
+        chain = chain.then(function () { return loadScript(BASE + f); });
+      });
+      chain.then(function () {
+        console.log('[SF] product-add & pack modules loaded');
+        setTimeout(function () {
+          if (typeof window.__sfEnsureAddProduct === 'function') window.__sfEnsureAddProduct();
+        }, 500);
+      });
+    }, 100);
   }).catch(function (e) {
-    document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">\u0e42\u0e2b\u0e25\u0e14\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49: ' + e + '</p>';
+    document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">\u0e42\u0e2b\u0e25\u0e14\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08: ' + e + '</p>';
   });
 })();
 </script>
