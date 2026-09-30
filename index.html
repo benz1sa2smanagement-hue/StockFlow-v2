@@ -6,7 +6,7 @@
 <title>StockFlow</title>
 <script>
 (function () {
-  var BASE = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@main/';
+  var BASE = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@464c201b34bbf2807c4a5ad49ef73e846bbcdd12/';
   var PIN  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
   var EXTRA = [
     'product-image.js',
@@ -44,7 +44,7 @@
         chain = chain.then(function () { return loadScript(BASE + f); });
       });
       chain.then(function () {
-        console.log('[SF] product-add & pack modules loaded');
+        console.log('[SF] product-add & pack modules loaded (v3)');
         setTimeout(function () {
           if (typeof window.__sfEnsureAddProduct === 'function') window.__sfEnsureAddProduct();
         }, 500);
