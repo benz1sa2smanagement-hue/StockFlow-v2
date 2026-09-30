@@ -6,21 +6,27 @@
 <title>StockFlow</title>
 <script>
 (function () {
-  var BASE = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@ae32375574d529d1c5849ce620e08b3e6dc014e9/';
+  // product-image @ 2df615ae (no capture)
+  // product-add + pack-visual loaders @ c28b5182 → real code without forced camera
+  // other modules from ae323755
+  var BASE_MAIN = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@c28b5182ed8dcdeedd47e76ce3932626852ef793/';
+  var BASE_IMG  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@2df615ae708859470b223e49742d08478269477b/';
+  var BASE_OLD  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@ae32375574d529d1c5849ce620e08b3e6dc014e9/';
   var PIN  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
+
   var EXTRA = [
-    'product-image.js',
-    'product-add.js',
-    'product-thumbs.js',
-    'pack-wrong-guide.js',
-    'pack-orders.js',
-    'pack-line-ui.js',
-    'pack-match.js',
-    'pack-sku-expand.js',
-    'pack-queue.js',
-    'pack-queue-ui.js',
-    'pack-bigseller-bridge.js',
-    'pack-visual.js'
+    { f: 'product-image.js', base: BASE_IMG },
+    { f: 'product-add.js', base: BASE_MAIN },
+    { f: 'product-thumbs.js', base: BASE_OLD },
+    { f: 'pack-wrong-guide.js', base: BASE_OLD },
+    { f: 'pack-orders.js', base: BASE_OLD },
+    { f: 'pack-line-ui.js', base: BASE_OLD },
+    { f: 'pack-match.js', base: BASE_OLD },
+    { f: 'pack-sku-expand.js', base: BASE_OLD },
+    { f: 'pack-queue.js', base: BASE_OLD },
+    { f: 'pack-queue-ui.js', base: BASE_OLD },
+    { f: 'pack-bigseller-bridge.js', base: BASE_OLD },
+    { f: 'pack-visual.js', base: BASE_MAIN }
   ];
 
   function loadScript(src) {
@@ -41,24 +47,30 @@
 
     setTimeout(function () {
       var chain = Promise.resolve();
-      EXTRA.forEach(function (f) {
-        chain = chain.then(function () { return loadScript(BASE + f); });
+      EXTRA.forEach(function (item) {
+        chain = chain.then(function () { return loadScript(item.base + item.f); });
       });
       chain.then(function () {
-        console.log('[SF] modules loaded v4 image picker');
+        console.log('[SF] modules loaded — gallery image pick');
+        // ลบ capture ทุก file input ที่เหลือ
+        setInterval(function () {
+          document.querySelectorAll('input[type="file"][capture]').forEach(function (el) {
+            el.removeAttribute('capture');
+          });
+        }, 800);
         setTimeout(function () {
           if (typeof window.__sfEnsureAddProduct === 'function') window.__sfEnsureAddProduct();
           if (typeof window.__sfRefreshThumbs === 'function') window.__sfRefreshThumbs();
-        }, 500);
+        }, 600);
       });
     }, 100);
   }).catch(function (e) {
-    document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">\u0e42\u0e2b\u0e25\u0e14\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08: ' + e + '</p>';
+    document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">โหลดไม่สำเร็จ: ' + e + '</p>';
   });
 })();
 </script>
 </head>
 <body>
-<p style="padding:24px;font-family:Sarabun,sans-serif;color:#666">\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14 StockFlow\u2026</p>
+<p style="padding:24px;font-family:Sarabun,sans-serif;color:#666">กำลังโหลด StockFlow…</p>
 </body>
 </html>
