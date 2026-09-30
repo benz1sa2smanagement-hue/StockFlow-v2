@@ -1,10 +1,12 @@
 /**
  * Add product on Products tab: name, SKU, barcode, units, image upload
+ * Fixed: image upload no longer closes the sheet on mobile
  */
 (function () {
   'use strict';
   var DB = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app';
   var pendingImage = null;
+  var fileDialogOpen = false;
 
   function wsKey() { return sessionStorage.getItem('sf_session_ws') || ''; }
   function roomId() { return localStorage.getItem('sf_room_' + wsKey()) || 'WH_A'; }
@@ -23,26 +25,68 @@
 
   function compressImage(file, maxW, quality) {
     return new Promise(function (resolve, reject) {
+      if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+        reject(new Error('not-image'));
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function () {
         var img = new Image();
         img.onload = function () {
-          var w = img.width, h = img.height;
-          if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
-          var canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          var data = canvas.toDataURL('image/jpeg', quality);
-          if (data.length > 180000 && quality > 0.45) resolve(canvas.toDataURL('image/jpeg', 0.45));
-          else resolve(data);
+          try {
+            var w = img.width, h = img.height;
+            if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            var data = canvas.toDataURL('image/jpeg', quality);
+            if (data.length > 180000 && quality > 0.45) {
+              data = canvas.toDataURL('image/jpeg', 0.45);
+            }
+            resolve(data);
+          } catch (err) {
+            reject(err);
+          }
         };
-        img.onerror = reject;
+        img.onerror = function () { reject(new Error('img-load')); };
         img.src = reader.result;
       };
-      reader.onerror = reject;
+      reader.onerror = function () { reject(new Error('read')); };
       reader.readAsDataURL(file);
     });
   }
+
+  function keepSheetOpen() {
+    var ov = document.getElementById('pa-ov');
+    if (ov && !ov.classList.contains('open')) {
+      ov.classList.add('open');
+    }
+  }
+
+  // กันชีทปิดตอนกลับจาก gallery / camera บนมือถือ
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && fileDialogOpen) {
+      setTimeout(function () {
+        keepSheetOpen();
+        fileDialogOpen = false;
+      }, 50);
+      setTimeout(keepSheetOpen, 200);
+      setTimeout(keepSheetOpen, 500);
+    }
+  });
+  window.addEventListener('focus', function () {
+    if (fileDialogOpen) {
+      setTimeout(function () {
+        keepSheetOpen();
+        fileDialogOpen = false;
+      }, 50);
+    }
+  });
+  window.addEventListener('pageshow', function () {
+    if (fileDialogOpen) {
+      setTimeout(keepSheetOpen, 50);
+    }
+  });
 
   function ensureAddBtn() {
     var page = document.getElementById('page-products');
@@ -52,7 +96,7 @@
       btn = document.createElement('button');
       btn.id = 'prod-add-btn';
       btn.type = 'button';
-      btn.textContent = '+ \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32';
+      btn.textContent = '+ เพิ่มสินค้า';
       btn.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:8px 0 14px;padding:14px 16px;border-radius:14px;border:none;background:#0C0E12;color:#fff;font-size:15px;font-weight:800;cursor:pointer;z-index:5;position:relative';
       btn.addEventListener('click', function (e) {
         e.preventDefault();
@@ -80,110 +124,157 @@
     ov.id = 'pa-ov';
     ov.innerHTML =
       '<div class="sheet" style="max-height:92vh;overflow:auto">' +
-      '<div class="sheet-h"><div class="sheet-t">\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48</div>' +
+      '<div class="sheet-h"><div class="sheet-t">เพิ่มสินค้าใหม่</div>' +
       '<button type="button" class="sheet-x" id="pa-close">\u2715</button></div>' +
       '<div class="sheet-b">' +
-      '<div class="field"><label>\u0e23\u0e39\u0e1b\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32</label>' +
-      '<div id="pa-img-box" style="border:2px dashed var(--line2,#ddd);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:var(--bg,#faf8f4);min-height:120px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">' +
-      '<img id="pa-img-preview" alt="" style="display:none;max-width:100%;max-height:160px;border-radius:10px;object-fit:contain">' +
-      '<div id="pa-img-ph" style="color:var(--ink3);font-size:13px;font-weight:600">\u0e41\u0e15\u0e30\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e23\u0e39\u0e1b<br><span style="font-weight:400;font-size:11px">JPG / PNG</span></div>' +
+      '<div class="field"><label>รูปสินค้า</label>' +
+      '<div id="pa-img-box" style="position:relative;border:2px dashed var(--line2,#ddd);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:var(--bg,#faf8f4);min-height:120px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:5;pointer-events:auto;overflow:hidden">' +
+      '<img id="pa-img-preview" alt="" style="display:none;max-width:100%;max-height:160px;border-radius:10px;object-fit:contain;pointer-events:none">' +
+      '<div id="pa-img-ph" style="color:var(--ink3);font-size:13px;font-weight:600;pointer-events:none">แตะเพื่ออัปโหลดรูป<br><span style="font-weight:400;font-size:11px">JPG / PNG</span></div>' +
+      '<input type="file" id="pa-img-file" accept="image/*" capture="environment" ' +
+      'style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:6;font-size:0;pointer-events:auto">' +
       '</div>' +
-      '<input type="file" id="pa-img-file" accept="image/*" capture="environment" style="display:none">' +
-      '<button type="button" id="pa-img-clear" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer">\u0e25\u0e1a\u0e23\u0e39\u0e1b</button></div>' +
-      '<div class="field"><label>\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 <span style="color:#b91c1c">*</span></label>' +
-      '<input type="text" id="pa-name" placeholder="\u0e40\u0e0a\u0e48\u0e19 \u0e04\u0e34\u0e42\u0e22\u0e21\u0e34 \u0e17\u0e34\u0e0a\u0e0a\u0e39\u0e48\u0e14\u0e36\u0e07" autocomplete="off"></div>' +
-      '<div class="field"><label>\u0e23\u0e2b\u0e31\u0e2a SKU <span style="color:#b91c1c">*</span></label>' +
-      '<input type="text" id="pa-sku" placeholder="\u0e40\u0e0a\u0e48\u0e19 PULL-1PACK" autocomplete="off"></div>' +
-      '<div class="field"><label>\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14</label>' +
-      '<input type="text" id="pa-barcode" placeholder="\u0e2a\u0e41\u0e01\u0e19\u0e2b\u0e23\u0e37\u0e2d\u0e1e\u0e34\u0e21\u0e1e\u0e4c\u0e1a\u0e32\u0e23\u0e4c\u0e40\u0e04\u0e49\u0e14" autocomplete="off" inputmode="numeric"></div>' +
+      '<button type="button" id="pa-img-clear" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer;position:relative;z-index:7">ลบรูป</button></div>' +
+      '<div class="field"><label>ชื่อสินค้า <span style="color:#b91c1c">*</span></label>' +
+      '<input type="text" id="pa-name" placeholder="เช่น คิโยมิ ทิชชู่ดึง" autocomplete="off"></div>' +
+      '<div class="field"><label>รหัส SKU <span style="color:#b91c1c">*</span></label>' +
+      '<input type="text" id="pa-sku" placeholder="เช่น PULL-1PACK" autocomplete="off"></div>' +
+      '<div class="field"><label>บาร์โค้ด</label>' +
+      '<input type="text" id="pa-barcode" placeholder="สแกนหรือพิมพ์บาร์โค้ด" autocomplete="off" inputmode="numeric"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-      '<div class="field"><label>\u0e2b\u0e19\u0e48\u0e27\u0e22\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19</label>' +
+      '<div class="field"><label>หน่วยพื้นฐาน</label>' +
       '<select id="pa-base-unit">' +
-      '<option value="\u0e41\u0e1e\u0e47\u0e04">\u0e41\u0e1e\u0e47\u0e04</option>' +
-      '<option value="\u0e0a\u0e34\u0e49\u0e19">\u0e0a\u0e34\u0e49\u0e19</option>' +
-      '<option value="\u0e01\u0e25\u0e48\u0e2d\u0e07">\u0e01\u0e25\u0e48\u0e2d\u0e07</option>' +
-      '<option value="\u0e21\u0e49\u0e27\u0e19">\u0e21\u0e49\u0e27\u0e19</option>' +
-      '<option value="\u0e2b\u0e48\u0e2d">\u0e2b\u0e48\u0e2d</option>' +
-      '<option value="\u0e16\u0e38\u0e07">\u0e16\u0e38\u0e07</option>' +
-      '<option value="\u0e02\u0e27\u0e14">\u0e02\u0e27\u0e14</option>' +
-      '<option value="\u0e2d\u0e31\u0e19">\u0e2d\u0e31\u0e19</option>' +
+      '<option value="แพ็ค">แพ็ค</option>' +
+      '<option value="ชิ้น">ชิ้น</option>' +
+      '<option value="กล่อง">กล่อง</option>' +
+      '<option value="ม้วน">ม้วน</option>' +
+      '<option value="ห่อ">ห่อ</option>' +
+      '<option value="ถุง">ถุง</option>' +
+      '<option value="ขวด">ขวด</option>' +
+      '<option value="อัน">อัน</option>' +
       '</select></div>' +
-      '<div class="field"><label>\u0e2b\u0e19\u0e48\u0e27\u0e22\u0e25\u0e31\u0e07</label>' +
+      '<div class="field"><label>หน่วยลัง</label>' +
       '<select id="pa-case-unit">' +
-      '<option value="\u0e25\u0e31\u0e07">\u0e25\u0e31\u0e07</option>' +
-      '<option value="\u0e01\u0e25\u0e48\u0e2d\u0e07">\u0e01\u0e25\u0e48\u0e2d\u0e07</option>' +
-      '<option value="\u0e41\u0e1e\u0e47\u0e04">\u0e41\u0e1e\u0e47\u0e04</option>' +
-      '<option value="\u0e0a\u0e38\u0e14">\u0e0a\u0e38\u0e14</option>' +
+      '<option value="ลัง">ลัง</option>' +
+      '<option value="กล่อง">กล่อง</option>' +
+      '<option value="แพ็ค">แพ็ค</option>' +
+      '<option value="ชุด">ชุด</option>' +
       '</select></div></div>' +
-      '<div class="field"><label>\u0e08\u0e33\u0e19\u0e27\u0e19\u0e15\u0e48\u0e2d\u0e25\u0e31\u0e07</label>' +
+      '<div class="field"><label>จำนวนต่อลัง</label>' +
       '<input type="number" id="pa-ppc" min="1" step="1" value="1">' +
-      '<div style="font-size:11px;color:var(--ink3);margin-top:4px">\u0e16\u0e49\u0e32 1 \u0e25\u0e31\u0e07 = 4 \u0e41\u0e1e\u0e47\u0e04 \u0e43\u0e2b\u0e49\u0e43\u0e2a\u0e48 4</div></div>' +
+      '<div style="font-size:11px;color:var(--ink3);margin-top:4px">ถ้า 1 ลัง = 4 แพ็ค ให้ใส่ 4</div></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-      '<div class="field"><label>\u0e23\u0e32\u0e04\u0e32\u0e17\u0e38\u0e19</label>' +
+      '<div class="field"><label>ราคาทุน</label>' +
       '<input type="number" id="pa-cost" min="0" step="any" value="0"></div>' +
-      '<div class="field"><label>\u0e23\u0e32\u0e04\u0e32\u0e02\u0e32\u0e22</label>' +
+      '<div class="field"><label>ราคาขาย</label>' +
       '<input type="number" id="pa-sale" min="0" step="any" value="0"></div></div>' +
-      '<div class="field"><label>\u0e2b\u0e21\u0e27\u0e14\u0e2b\u0e21\u0e39\u0e48</label>' +
-      '<input type="text" id="pa-cat" placeholder="\u0e40\u0e0a\u0e48\u0e19 \u0e17\u0e34\u0e0a\u0e0a\u0e39\u0e48" autocomplete="off"></div>' +
-      '<button type="button" class="btn btn-ink" id="pa-save" style="width:100%;margin-top:8px;padding:14px;font-size:15px;font-weight:800">\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48</button>' +
+      '<div class="field"><label>หมวดหมู่</label>' +
+      '<input type="text" id="pa-cat" placeholder="เช่น ทิชชู่" autocomplete="off"></div>' +
+      '<button type="button" class="btn btn-ink" id="pa-save" style="width:100%;margin-top:8px;padding:14px;font-size:15px;font-weight:800">บันทึกสินค้าใหม่</button>' +
       '</div></div>';
     document.body.appendChild(ov);
 
     document.getElementById('pa-close').addEventListener('click', function (e) {
       e.preventDefault();
+      e.stopPropagation();
       ov.classList.remove('open');
     });
     ov.addEventListener('click', function (e) {
       if (e.target === ov) ov.classList.remove('open');
     });
+    var sheetEl = ov.querySelector('.sheet');
+    if (sheetEl) {
+      sheetEl.addEventListener('click', function (e) {
+        e.stopPropagation();
+      });
+    }
 
-    var box = document.getElementById('pa-img-box');
     var file = document.getElementById('pa-img-file');
     var prev = document.getElementById('pa-img-preview');
     var ph = document.getElementById('pa-img-ph');
     var clearBtn = document.getElementById('pa-img-clear');
 
-    box.addEventListener('click', function () { file.click(); });
-    file.addEventListener('change', function () {
-      var f = file.files && file.files[0];
-      if (!f) return;
-      compressImage(f, 720, 0.72).then(function (data) {
-        pendingImage = data;
+    function applyPreview(data) {
+      pendingImage = data;
+      if (prev) {
         prev.src = data;
         prev.style.display = 'block';
-        ph.style.display = 'none';
-        clearBtn.style.display = 'inline-block';
-      }).catch(function () { toast('\u0e2d\u0e48\u0e32\u0e19\u0e23\u0e39\u0e1b\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08'); });
-    });
-    clearBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      pendingImage = null;
-      prev.src = '';
-      prev.style.display = 'none';
-      ph.style.display = 'block';
-      clearBtn.style.display = 'none';
-      file.value = '';
-    });
+      }
+      if (ph) ph.style.display = 'none';
+      if (clearBtn) clearBtn.style.display = 'inline-block';
+      keepSheetOpen();
+    }
+
+    function onFileSelected(f) {
+      if (!f) return;
+      if (f.size > 8 * 1024 * 1024) {
+        toast('ไฟล์ใหญ่เกิน 8MB');
+        return;
+      }
+      toast('กำลังย่อรูป…');
+      keepSheetOpen();
+      compressImage(f, 720, 0.72).then(function (data) {
+        applyPreview(data);
+        toast('พร้อมแล้ว — กดบันทึก');
+        keepSheetOpen();
+      }).catch(function () {
+        toast('อ่านรูปไม่สำเร็จ');
+        keepSheetOpen();
+      });
+    }
+
+    if (file) {
+      file.addEventListener('click', function (e) {
+        e.stopPropagation();
+        fileDialogOpen = true;
+      });
+      file.addEventListener('change', function (e) {
+        e.stopPropagation();
+        fileDialogOpen = false;
+        var f = file.files && file.files[0];
+        onFileSelected(f);
+        setTimeout(function () { try { file.value = ''; } catch (err) {} }, 400);
+      });
+      file.addEventListener('focus', function () { fileDialogOpen = true; });
+      file.addEventListener('blur', function () {
+        setTimeout(function () {
+          keepSheetOpen();
+        }, 100);
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        pendingImage = null;
+        if (prev) { prev.removeAttribute('src'); prev.style.display = 'none'; }
+        if (ph) ph.style.display = 'block';
+        clearBtn.style.display = 'none';
+        if (file) file.value = '';
+      });
+    }
 
     document.getElementById('pa-save').addEventListener('click', function (e) {
       e.preventDefault();
+      e.stopPropagation();
       saveNewProduct();
     });
   }
 
   function openAddSheet() {
     if (!wsKey()) {
-      toast('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a');
+      toast('ยังไม่ได้เข้าสู่ระบบ');
       return;
     }
     ensureSheet();
     pendingImage = null;
+    fileDialogOpen = false;
     document.getElementById('pa-name').value = '';
     document.getElementById('pa-sku').value = '';
     document.getElementById('pa-barcode').value = '';
-    document.getElementById('pa-base-unit').value = '\u0e41\u0e1e\u0e47\u0e04';
-    document.getElementById('pa-case-unit').value = '\u0e25\u0e31\u0e07';
+    document.getElementById('pa-base-unit').value = 'แพ็ค';
+    document.getElementById('pa-case-unit').value = 'ลัง';
     document.getElementById('pa-ppc').value = '1';
     document.getElementById('pa-cost').value = '0';
     document.getElementById('pa-sale').value = '0';
@@ -192,7 +283,7 @@
     var ph = document.getElementById('pa-img-ph');
     var clearBtn = document.getElementById('pa-img-clear');
     var file = document.getElementById('pa-img-file');
-    if (prev) { prev.src = ''; prev.style.display = 'none'; }
+    if (prev) { prev.removeAttribute('src'); prev.style.display = 'none'; }
     if (ph) ph.style.display = 'block';
     if (clearBtn) clearBtn.style.display = 'none';
     if (file) file.value = '';
@@ -205,14 +296,14 @@
 
   function saveNewProduct() {
     if (!wsKey()) {
-      toast('\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a');
+      toast('ยังไม่ได้เข้าสู่ระบบ');
       return;
     }
     var name = (document.getElementById('pa-name').value || '').trim();
     var unitSku = (document.getElementById('pa-sku').value || '').trim();
     var barcode = (document.getElementById('pa-barcode').value || '').trim();
-    var baseUnit = document.getElementById('pa-base-unit').value || '\u0e41\u0e1e\u0e47\u0e04';
-    var caseUnit = document.getElementById('pa-case-unit').value || '\u0e25\u0e31\u0e07';
+    var baseUnit = document.getElementById('pa-base-unit').value || 'แพ็ค';
+    var caseUnit = document.getElementById('pa-case-unit').value || 'ลัง';
     var ppc = parseInt(document.getElementById('pa-ppc').value, 10) || 1;
     if (ppc < 1) ppc = 1;
     var cost = parseFloat(document.getElementById('pa-cost').value) || 0;
@@ -220,12 +311,12 @@
     var cat = (document.getElementById('pa-cat').value || '').trim();
 
     if (!name) {
-      toast('\u0e01\u0e23\u0e38\u0e13\u0e32\u0e43\u0e2a\u0e48\u0e0a\u0e37\u0e48\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32');
+      toast('กรุณาใส่ชื่อสินค้า');
       document.getElementById('pa-name').focus();
       return;
     }
     if (!unitSku) {
-      toast('\u0e01\u0e23\u0e38\u0e13\u0e32\u0e43\u0e2a\u0e48\u0e23\u0e2b\u0e31\u0e2a SKU');
+      toast('กรุณาใส่รหัส SKU');
       document.getElementById('pa-sku').focus();
       return;
     }
@@ -249,7 +340,7 @@
     var btn = document.getElementById('pa-save');
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '\u0e01\u0e33\u0e25\u0e31\u0e07\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u2026';
+      btn.textContent = 'กำลังบันทึก…';
     }
 
     fetch(DB + '/' + rp() + '/skus/' + encodeURIComponent(id) + '.json', {
@@ -260,16 +351,17 @@
       if (!r.ok) throw new Error(r.status);
       return r.json();
     }).then(function () {
-      toast('\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e41\u0e25\u0e49\u0e27: ' + name);
+      toast('เพิ่มสินค้าแล้ว: ' + name);
       document.getElementById('pa-ov').classList.remove('open');
       pendingImage = null;
       setTimeout(function () { location.reload(); }, 700);
     }).catch(function (err) {
-      toast('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08: ' + (err && err.message || err));
+      toast('บันทึกไม่สำเร็จ: ' + (err && err.message || err));
+      keepSheetOpen();
     }).finally(function () {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = '\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48';
+        btn.textContent = 'บันทึกสินค้าใหม่';
       }
     });
   }
@@ -282,11 +374,11 @@
     var wrap = document.createElement('div');
     wrap.innerHTML =
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">' +
-      '<div class="field"><label>\u0e2b\u0e19\u0e48\u0e27\u0e22\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19</label>' +
-      '<select id="bc-base-unit"><option value="\u0e41\u0e1e\u0e47\u0e04">\u0e41\u0e1e\u0e47\u0e04</option><option value="\u0e0a\u0e34\u0e49\u0e19">\u0e0a\u0e34\u0e49\u0e19</option><option value="\u0e01\u0e25\u0e48\u0e2d\u0e07">\u0e01\u0e25\u0e48\u0e2d\u0e07</option><option value="\u0e21\u0e49\u0e27\u0e19">\u0e21\u0e49\u0e27\u0e19</option><option value="\u0e2b\u0e48\u0e2d">\u0e2b\u0e48\u0e2d</option><option value="\u0e16\u0e38\u0e07">\u0e16\u0e38\u0e07</option><option value="\u0e02\u0e27\u0e14">\u0e02\u0e27\u0e14</option><option value="\u0e2d\u0e31\u0e19">\u0e2d\u0e31\u0e19</option></select></div>' +
-      '<div class="field"><label>\u0e2b\u0e19\u0e48\u0e27\u0e22\u0e25\u0e31\u0e07</label>' +
-      '<select id="bc-case-unit"><option value="\u0e25\u0e31\u0e07">\u0e25\u0e31\u0e07</option><option value="\u0e01\u0e25\u0e48\u0e2d\u0e07">\u0e01\u0e25\u0e48\u0e2d\u0e07</option><option value="\u0e41\u0e1e\u0e47\u0e04">\u0e41\u0e1e\u0e47\u0e04</option><option value="\u0e0a\u0e38\u0e14">\u0e0a\u0e38\u0e14</option></select></div></div>' +
-      '<div class="field"><label>\u0e08\u0e33\u0e19\u0e27\u0e19\u0e15\u0e48\u0e2d\u0e25\u0e31\u0e07</label>' +
+      '<div class="field"><label>หน่วยพื้นฐาน</label>' +
+      '<select id="bc-base-unit"><option value="แพ็ค">แพ็ค</option><option value="ชิ้น">ชิ้น</option><option value="กล่อง">กล่อง</option><option value="ม้วน">ม้วน</option><option value="ห่อ">ห่อ</option><option value="ถุง">ถุง</option><option value="ขวด">ขวด</option><option value="อัน">อัน</option></select></div>' +
+      '<div class="field"><label>หน่วยลัง</label>' +
+      '<select id="bc-case-unit"><option value="ลัง">ลัง</option><option value="กล่อง">กล่อง</option><option value="แพ็ค">แพ็ค</option><option value="ชุด">ชุด</option></select></div></div>' +
+      '<div class="field"><label>จำนวนต่อลัง</label>' +
       '<input type="number" id="bc-ppc" min="1" step="1" value="1"></div>';
     var saveBtn = document.getElementById('bc-save');
     if (saveBtn) body.insertBefore(wrap, saveBtn);
@@ -335,8 +427,8 @@
           var b = document.getElementById('bc-base-unit');
           var c = document.getElementById('bc-case-unit');
           var p = document.getElementById('bc-ppc');
-          if (b) b.value = s.baseUnit || '\u0e41\u0e1e\u0e47\u0e04';
-          if (c) c.value = s.caseUnit || '\u0e25\u0e31\u0e07';
+          if (b) b.value = s.baseUnit || 'แพ็ค';
+          if (c) c.value = s.caseUnit || 'ลัง';
           if (p) p.value = String(s.piecesPerCase || 1);
         }).catch(function () {});
     }, 250);
