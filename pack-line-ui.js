@@ -1,21 +1,28 @@
 /**
  * Big pack-line cards: product name + qty + unit
- * Keeps data-* attrs so pack-visual can show remaining images
- * RULE: ถ้า SKU มี PACK → ใช้หน่วยแพ็ค (ไม่ให้ (35/ลัง) ในชื่อบังคับเป็นลัง)
+ * RULE: ออเดอร์ระบุลัง → ลัง; (n/ลัง)=ความจุ ไม่ใช่หน่วย; SKU*PACK → แพ็ค
  */
 (function () {
   'use strict';
 
   function parseUnit(sku, name) {
     var skuU = String(sku || '').toUpperCase();
-    var s = String(sku || '') + ' ' + String(name || '');
+    var nameStr = String(name || '');
+    var s = String(sku || '') + ' ' + nameStr;
     var u = s.toUpperCase();
-    // ยึดจาก SKU ก่อน: ถ้าเป็น *PACK → แพ็ค เสมอ (แม้ชื่อมี /ลัง)
+    var nameNoDensity = nameStr.replace(/\(\s*\d+\s*\/\s*\u0e25\u0e31\u0e07\s*\)/g, ' ');
+    if (/\d+\s*\u0e25\u0e31\u0e07/.test(nameNoDensity) ||
+        /(^|[\s\-\/])\u0e25\u0e31\u0e07([\s\-\/]|$)/.test(nameNoDensity) ||
+        /\b(case|carton|box)\b/i.test(nameNoDensity) ||
+        /\b\u0e22\u0e01\u0e25\u0e31\u0e07\b/.test(nameNoDensity)) {
+      return '\u0e25\u0e31\u0e07';
+    }
+    if (skuU.indexOf('BOX') >= 0 || skuU.indexOf('CASE') >= 0 || skuU.indexOf('CARTON') >= 0) {
+      return '\u0e25\u0e31\u0e07';
+    }
     if (skuU.indexOf('PACK') >= 0) return '\u0e41\u0e1e\u0e47\u0e04';
-    if (skuU.indexOf('BOX') >= 0) return '\u0e25\u0e31\u0e07';
-    // จากชื่อ: ลัง / PACK / แพ็ค
-    if (u.indexOf('BOX') >= 0 || s.indexOf('\u0e25\u0e31\u0e07') >= 0) return '\u0e25\u0e31\u0e07';
-    if (u.indexOf('PACK') >= 0 || s.indexOf('\u0e41\u0e1e\u0e47\u0e04') >= 0) return '\u0e41\u0e1e\u0e47\u0e04';
+    if (u.indexOf('PACK') >= 0 || nameStr.indexOf('\u0e41\u0e1e\u0e47\u0e04') >= 0) return '\u0e41\u0e1e\u0e47\u0e04';
+    if (u.indexOf('BOX') >= 0) return '\u0e25\u0e31\u0e07';
     return '\u0e0a\u0e34\u0e49\u0e19';
   }
 
@@ -104,4 +111,5 @@
   });
   mo.observe(document.body, { childList: true, subtree: true });
   setInterval(enhanceBox, 400);
+  console.log('[SF] pack-line-ui ready (unit: order case > SKU PACK)');
 })();
