@@ -49,6 +49,12 @@
     return (idEl && idEl.textContent || '').replace(/^ID:\s*/, '').trim();
   }
 
+  function refreshAllImages() {
+    if (typeof window.__packReloadSkuImages === 'function') window.__packReloadSkuImages();
+    if (typeof window.__sfRefreshThumbs === 'function') window.__sfRefreshThumbs();
+    if (typeof window.__reloadProductsBarcode === 'function') window.__reloadProductsBarcode();
+  }
+
   function ensureImageField() {
     var sheetB = document.querySelector('#bc-ov .sheet-b');
     if (!sheetB) return;
@@ -173,7 +179,7 @@
       }).then(function () {
         toast(img ? '\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e23\u0e39\u0e1b\u0e41\u0e25\u0e49\u0e27' : '\u0e25\u0e1a\u0e23\u0e39\u0e1b\u0e41\u0e25\u0e49\u0e27');
         pendingImage = null;
-        if (typeof window.__packReloadSkuImages === 'function') window.__packReloadSkuImages();
+        refreshAllImages();
       }).catch(function () {
         toast('\u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e23\u0e39\u0e1b\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08');
       });
