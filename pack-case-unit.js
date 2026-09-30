@@ -1,27 +1,29 @@
 /**
- * pack-case-unit.js
- * สินค้าเดียวรองรับแพ็ค + ลัง (ไม่ต้องแยก SKU)
- * - piecesPerCase: จำนวนแพ็คใน 1 ลัง (เช่น 4)
- * - caseBarcode: บาร์โค้ดลัง
- * - caseImage: รูปลัง
- * เมื่อออเดอร์เป็น "1 ลัง" → แปลงเป็น N แพ็คอัตโนมัติ
+ * pack-case-unit.js v2
+ * สินค้าเดียวรองรับแพ็ค + ลัง
+ * เมื่อออเดอร์เป็นลัง → หน่วยแสดงลัง, qty ตามออเดอร์
  */
 (function () {
   'use strict';
 
   function isCaseText(t) {
-    t = String(t || '').toLowerCase();
-    return t.indexOf('\u0e25\u0e31\u0e07') >= 0 ||
-      t.indexOf('\u0e22\u0e01\u0e25\u0e31\u0e07') >= 0 ||
-      /\b(case|carton)\b/i.test(t);
+    t = String(t || '');
+    var cleaned = t.replace(/\(\s*\d+\s*\/\s*\u0e25\u0e31\u0e07\s*\)/g, ' ');
+    var low = cleaned.toLowerCase();
+    if (/\d+\s*\u0e25\u0e31\u0e07/.test(cleaned)) return true;
+    if (/(^|[\s\-\/])\u0e25\u0e31\u0e07([\s\-\/]|$)/.test(cleaned)) return true;
+    if (/\b\u0e22\u0e01\u0e25\u0e31\u0e07\b/.test(cleaned)) return true;
+    if (/\b(case|carton)\b/i.test(low)) return true;
+    return false;
   }
 
   function isCaseOrder(line) {
     if (!line) return false;
+    if (line.packAsCase || line.orderUnit === '\u0e25\u0e31\u0e07') return true;
     return isCaseText(
       (line.name || '') + ' ' + (line.unitSku || '') + ' ' + (line.skuId || '') + ' ' +
       (line.rawSku || '') + ' ' + (line.option || '') + ' ' + (line.variation || '') + ' ' +
-      (line.variationName || '')
+      (line.variationName || '') + ' ' + (line.spec || '')
     );
   }
 
@@ -29,21 +31,32 @@
     if (!order || !order.lines) return order;
     skus = skus || {};
     order.lines.forEach(function (l) {
-      if (!l || !l.matched) return;
-      var s = skus[l.skuId] || {};
-      var ppc = parseInt(s.piecesPerCase, 10) || 1;
-      if (ppc < 2) return;
-      if (!isCaseOrder(l) && !isCaseText(l.name) && !isCaseText(l.rawSku)) return;
-      if (l.packAsCase) return;
+      if (!l) return;
+      var s = skus[l.skuId] || skus[l.unitSku] || {};
+      var asCase = isCaseOrder(l) || isCaseText(l.name) || isCaseText(l.rawSku) ||
+        isCaseText(l.option) || isCaseText(l.variation) || isCaseText(l.variationName);
+      if (!asCase) return;
+      if (l.packAsCase && l._caseApplied) return;
+
       var orderQty = parseInt(l.orderQty != null ? l.orderQty : l.qty, 10) || 1;
+      var ppc = parseInt(s.piecesPerCase, 10) || parseInt(l.piecesPerCase, 10) || 1;
+
       l.orderQty = orderQty;
-      l.qty = orderQty * ppc;
       l.packAsCase = true;
-      l.piecesPerCase = ppc;
       l.orderUnit = '\u0e25\u0e31\u0e07';
+      l.piecesPerCase = ppc;
       l.caseBarcode = s.caseBarcode || l.caseBarcode || '';
-      l.caseImage = s.caseImage || '';
-      if (s.caseImage) l.image = s.caseImage;
+      l.caseImage = s.caseImage || l.caseImage || '';
+      if (l.caseImage) l.image = l.caseImage;
+      l.stockQty = orderQty * (ppc >= 2 ? ppc : 1);
+      // แสดงเป็นจำนวนลังบนหน้าจอ (ไม่คูณแพ็ค)
+      l.qty = orderQty;
+
+      var nm = String(l.name || '');
+      if (nm.indexOf('\u0e25\u0e31\u0e07') < 0) {
+        l.name = nm + (nm ? ' ' : '') + orderQty + ' \u0e25\u0e31\u0e07';
+      }
+      l._caseApplied = true;
     });
     return order;
   }
@@ -108,7 +121,7 @@
     }
     wrapLoad();
     window.__packCaseUnitWrapped = true;
-    console.log('[SF] pack-case-unit ready');
+    console.log('[SF] pack-case-unit v2 ready');
   }
 
   var n = 0;
