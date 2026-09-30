@@ -11,6 +11,7 @@
   var BASE_OLD  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@ae32375574d529d1c5849ce620e08b3e6dc014e9/';
   var BASE_LINE = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@e949a7dcaf9c8866702f36911274b01b51cbaa59/';
   var BASE_CASE = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@a4eefbb93c72fe15b8dda827a0eca8ea4c20f688/';
+  var BASE_QTY  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@10b9ac8c8a4c87d53d39427963569aa6dcfac0d5/';
   var PIN  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
 
   var EXTRA = [
@@ -23,6 +24,7 @@
     { f: 'pack-match.js', base: BASE_OLD },
     { f: 'pack-sku-expand.js', base: BASE_OLD },
     { f: 'pack-case-unit.js', base: BASE_CASE },
+    { f: 'pack-qty-edit.js', base: BASE_QTY },
     { f: 'pack-queue.js', base: BASE_OLD },
     { f: 'pack-queue-ui.js', base: BASE_OLD },
     { f: 'pack-bigseller-bridge.js', base: BASE_OLD },
@@ -51,7 +53,7 @@
         chain = chain.then(function () { return loadScript(item.base + item.f); });
       });
       chain.then(function () {
-        console.log('[SF] modules v8 case-unit + pack-line fix');
+        console.log('[SF] modules v9 qty-edit + case-unit');
         setInterval(function () {
           document.querySelectorAll('input[type="file"][capture]').forEach(function (el) {
             el.removeAttribute('capture');
