@@ -1,12 +1,12 @@
 /**
  * Add product on Products tab: name, SKU, barcode, units, image upload
- * Fixed: image upload no longer closes the sheet on mobile
+ * v3: block ghost-click close after file picker (Chrome mobile flicker fix)
  */
 (function () {
   'use strict';
   var DB = 'https://kiyomi-b19d0-default-rtdb.asia-southeast1.firebasedatabase.app';
   var pendingImage = null;
-  var fileDialogOpen = false;
+  var blockCloseUntil = 0;
 
   function wsKey() { return sessionStorage.getItem('sf_session_ws') || ''; }
   function roomId() { return localStorage.getItem('sf_room_' + wsKey()) || 'WH_A'; }
@@ -56,37 +56,13 @@
     });
   }
 
-  function keepSheetOpen() {
-    var ov = document.getElementById('pa-ov');
-    if (ov && !ov.classList.contains('open')) {
-      ov.classList.add('open');
-    }
+  function isBlocked() {
+    return Date.now() < blockCloseUntil;
   }
 
-  // กันชีทปิดตอนกลับจาก gallery / camera บนมือถือ
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && fileDialogOpen) {
-      setTimeout(function () {
-        keepSheetOpen();
-        fileDialogOpen = false;
-      }, 50);
-      setTimeout(keepSheetOpen, 200);
-      setTimeout(keepSheetOpen, 500);
-    }
-  });
-  window.addEventListener('focus', function () {
-    if (fileDialogOpen) {
-      setTimeout(function () {
-        keepSheetOpen();
-        fileDialogOpen = false;
-      }, 50);
-    }
-  });
-  window.addEventListener('pageshow', function () {
-    if (fileDialogOpen) {
-      setTimeout(keepSheetOpen, 50);
-    }
-  });
+  function armBlock(ms) {
+    blockCloseUntil = Date.now() + (ms || 2000);
+  }
 
   function ensureAddBtn() {
     var page = document.getElementById('page-products');
@@ -123,18 +99,17 @@
     ov.className = 'ov';
     ov.id = 'pa-ov';
     ov.innerHTML =
-      '<div class="sheet" style="max-height:92vh;overflow:auto">' +
+      '<div class="sheet" id="pa-sheet" style="max-height:92vh;overflow:auto">' +
       '<div class="sheet-h"><div class="sheet-t">เพิ่มสินค้าใหม่</div>' +
       '<button type="button" class="sheet-x" id="pa-close">\u2715</button></div>' +
       '<div class="sheet-b">' +
       '<div class="field"><label>รูปสินค้า</label>' +
-      '<div id="pa-img-box" style="position:relative;border:2px dashed var(--line2,#ddd);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:var(--bg,#faf8f4);min-height:120px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:5;pointer-events:auto;overflow:hidden">' +
-      '<img id="pa-img-preview" alt="" style="display:none;max-width:100%;max-height:160px;border-radius:10px;object-fit:contain;pointer-events:none">' +
-      '<div id="pa-img-ph" style="color:var(--ink3);font-size:13px;font-weight:600;pointer-events:none">แตะเพื่ออัปโหลดรูป<br><span style="font-weight:400;font-size:11px">JPG / PNG</span></div>' +
-      '<input type="file" id="pa-img-file" accept="image/*" capture="environment" ' +
-      'style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:6;font-size:0;pointer-events:auto">' +
-      '</div>' +
-      '<button type="button" id="pa-img-clear" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer;position:relative;z-index:7">ลบรูป</button></div>' +
+      '<label id="pa-img-box" for="pa-img-file" style="display:block;position:relative;border:2px dashed var(--line2,#ddd);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:var(--bg,#faf8f4);min-height:120px;z-index:5;">' +
+      '<img id="pa-img-preview" alt="" style="display:none;max-width:100%;max-height:160px;border-radius:10px;object-fit:contain;margin:0 auto;pointer-events:none">' +
+      '<div id="pa-img-ph" style="color:var(--ink3);font-size:13px;font-weight:600;pointer-events:none">แตะเพื่ออัปโหลดรูป<br><span style="font-weight:400;font-size:11px">JPG / PNG · กดแล้วเลือกจากแกลเลอรี</span></div>' +
+      '</label>' +
+      '<input type="file" id="pa-img-file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);">' +
+      '<button type="button" id="pa-img-clear" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12px;cursor:pointer">ลบรูป</button></div>' +
       '<div class="field"><label>ชื่อสินค้า <span style="color:#b91c1c">*</span></label>' +
       '<input type="text" id="pa-name" placeholder="เช่น คิโยมิ ทิชชู่ดึง" autocomplete="off"></div>' +
       '<div class="field"><label>รหัส SKU <span style="color:#b91c1c">*</span></label>' +
@@ -174,25 +149,41 @@
       '</div></div>';
     document.body.appendChild(ov);
 
-    document.getElementById('pa-close').addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
+    function tryClose(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (isBlocked()) return;
+      ov.classList.remove('open');
+    }
+
+    document.getElementById('pa-close').addEventListener('click', tryClose);
+
+    ov.addEventListener('click', function (e) {
+      if (e.target !== ov) return;
+      if (isBlocked()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       ov.classList.remove('open');
     });
-    ov.addEventListener('click', function (e) {
-      if (e.target === ov) ov.classList.remove('open');
+
+    ['click', 'pointerdown', 'pointerup', 'touchend', 'mousedown', 'mouseup'].forEach(function (evt) {
+      ov.addEventListener(evt, function (e) {
+        if (!isBlocked()) return;
+        var sheet = document.getElementById('pa-sheet');
+        if (sheet && sheet.contains(e.target) && e.target !== ov) return;
+        if (e.target === ov || !sheet || !sheet.contains(e.target)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
     });
-    var sheetEl = ov.querySelector('.sheet');
-    if (sheetEl) {
-      sheetEl.addEventListener('click', function (e) {
-        e.stopPropagation();
-      });
-    }
 
     var file = document.getElementById('pa-img-file');
     var prev = document.getElementById('pa-img-preview');
     var ph = document.getElementById('pa-img-ph');
     var clearBtn = document.getElementById('pa-img-clear');
+    var imgBox = document.getElementById('pa-img-box');
 
     function applyPreview(data) {
       pendingImage = data;
@@ -202,46 +193,71 @@
       }
       if (ph) ph.style.display = 'none';
       if (clearBtn) clearBtn.style.display = 'inline-block';
-      keepSheetOpen();
+      ov.classList.add('open');
     }
 
     function onFileSelected(f) {
-      if (!f) return;
+      if (!f) {
+        armBlock(1500);
+        ov.classList.add('open');
+        return;
+      }
       if (f.size > 8 * 1024 * 1024) {
         toast('ไฟล์ใหญ่เกิน 8MB');
+        armBlock(1500);
+        ov.classList.add('open');
         return;
       }
       toast('กำลังย่อรูป…');
-      keepSheetOpen();
+      armBlock(3000);
+      ov.classList.add('open');
       compressImage(f, 720, 0.72).then(function (data) {
         applyPreview(data);
         toast('พร้อมแล้ว — กดบันทึก');
-        keepSheetOpen();
+        armBlock(1500);
+        ov.classList.add('open');
       }).catch(function () {
         toast('อ่านรูปไม่สำเร็จ');
-        keepSheetOpen();
+        armBlock(1500);
+        ov.classList.add('open');
+      });
+    }
+
+    if (imgBox) {
+      imgBox.addEventListener('click', function () {
+        armBlock(5000);
       });
     }
 
     if (file) {
-      file.addEventListener('click', function (e) {
-        e.stopPropagation();
-        fileDialogOpen = true;
+      file.addEventListener('click', function () {
+        armBlock(5000);
       });
-      file.addEventListener('change', function (e) {
-        e.stopPropagation();
-        fileDialogOpen = false;
+      file.addEventListener('change', function () {
+        armBlock(3000);
+        ov.classList.add('open');
         var f = file.files && file.files[0];
         onFileSelected(f);
-        setTimeout(function () { try { file.value = ''; } catch (err) {} }, 400);
-      });
-      file.addEventListener('focus', function () { fileDialogOpen = true; });
-      file.addEventListener('blur', function () {
         setTimeout(function () {
-          keepSheetOpen();
-        }, 100);
+          try { file.value = ''; } catch (err) {}
+        }, 500);
       });
     }
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && document.getElementById('pa-ov')) {
+        armBlock(2500);
+        var o = document.getElementById('pa-ov');
+        if (o) o.classList.add('open');
+      }
+    });
+    window.addEventListener('focus', function () {
+      if (document.getElementById('pa-ov')) {
+        armBlock(2000);
+        var o = document.getElementById('pa-ov');
+        if (o && pendingImage !== null) o.classList.add('open');
+      }
+    });
 
     if (clearBtn) {
       clearBtn.addEventListener('click', function (e) {
@@ -269,7 +285,7 @@
     }
     ensureSheet();
     pendingImage = null;
-    fileDialogOpen = false;
+    blockCloseUntil = 0;
     document.getElementById('pa-name').value = '';
     document.getElementById('pa-sku').value = '';
     document.getElementById('pa-barcode').value = '';
@@ -352,12 +368,12 @@
       return r.json();
     }).then(function () {
       toast('เพิ่มสินค้าแล้ว: ' + name);
+      blockCloseUntil = 0;
       document.getElementById('pa-ov').classList.remove('open');
       pendingImage = null;
       setTimeout(function () { location.reload(); }, 700);
     }).catch(function (err) {
       toast('บันทึกไม่สำเร็จ: ' + (err && err.message || err));
-      keepSheetOpen();
     }).finally(function () {
       if (btn) {
         btn.disabled = false;
