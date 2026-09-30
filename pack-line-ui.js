@@ -1,13 +1,19 @@
 /**
  * Big pack-line cards: product name + qty + unit
  * Keeps data-* attrs so pack-visual can show remaining images
+ * RULE: ถ้า SKU มี PACK → ใช้หน่วยแพ็ค (ไม่ให้ (35/ลัง) ในชื่อบังคับเป็นลัง)
  */
 (function () {
   'use strict';
 
   function parseUnit(sku, name) {
+    var skuU = String(sku || '').toUpperCase();
     var s = String(sku || '') + ' ' + String(name || '');
     var u = s.toUpperCase();
+    // ยึดจาก SKU ก่อน: ถ้าเป็น *PACK → แพ็ค เสมอ (แม้ชื่อมี /ลัง)
+    if (skuU.indexOf('PACK') >= 0) return '\u0e41\u0e1e\u0e47\u0e04';
+    if (skuU.indexOf('BOX') >= 0) return '\u0e25\u0e31\u0e07';
+    // จากชื่อ: ลัง / PACK / แพ็ค
     if (u.indexOf('BOX') >= 0 || s.indexOf('\u0e25\u0e31\u0e07') >= 0) return '\u0e25\u0e31\u0e07';
     if (u.indexOf('PACK') >= 0 || s.indexOf('\u0e41\u0e1e\u0e47\u0e04') >= 0) return '\u0e41\u0e1e\u0e47\u0e04';
     return '\u0e0a\u0e34\u0e49\u0e19';
