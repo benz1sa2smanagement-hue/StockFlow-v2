@@ -6,10 +6,7 @@
 <title>StockFlow</title>
 <script>
 (function () {
-  // product-image @ 2df615ae (no capture)
-  // product-add + pack-visual loaders @ c28b5182 → real code without forced camera
-  // other modules from ae323755
-  var BASE_MAIN = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@c28b5182ed8dcdeedd47e76ce3932626852ef793/';
+  var BASE_MAIN = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@4f4068ccb6baca2237fe695dac66e2e551b4f661/';
   var BASE_IMG  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@2df615ae708859470b223e49742d08478269477b/';
   var BASE_OLD  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@ae32375574d529d1c5849ce620e08b3e6dc014e9/';
   var PIN  = 'https://cdn.jsdelivr.net/gh/benz1sa2smanagement-hue/StockFlow-v2@d9733c4f131159c79ebbb5762d63460cacd9711c/index.html';
@@ -51,8 +48,7 @@
         chain = chain.then(function () { return loadScript(item.base + item.f); });
       });
       chain.then(function () {
-        console.log('[SF] modules loaded — gallery image pick');
-        // ลบ capture ทุก file input ที่เหลือ
+        console.log('[SF] modules loaded — gallery image pick v5');
         setInterval(function () {
           document.querySelectorAll('input[type="file"][capture]').forEach(function (el) {
             el.removeAttribute('capture');
