@@ -1,1 +1,1 @@
-PLACEHOLDER_SKU
+see_file
